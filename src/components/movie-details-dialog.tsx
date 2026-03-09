@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Movie, WatchlistEntry, Comment } from "@/app/lib/types";
@@ -15,6 +14,7 @@ import { Textarea } from "./ui/textarea";
 import { Input } from "./ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { ScrollArea } from "./ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 interface MovieDetailsDialogProps {
   movie: Movie | null;

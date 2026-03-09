@@ -4,7 +4,7 @@
     "UserProfile": {
       "title": "UserProfile",
       "type": "object",
-      "description": "Full user profile with preferences and cinema identity.",
+      "description": "Comprehensive user profile with cinema identity and preferences.",
       "properties": {
         "id": { "type": "string" },
         "email": { "type": "string", "format": "email" },
@@ -19,17 +19,14 @@
           }
         },
         "favoriteGenreIds": { "type": "array", "items": { "type": "string" } },
-        "friends": {
-          "type": "object",
-          "description": "Map of userId to boolean for relationship tracking."
-        }
+        "friends": { "type": "object" }
       },
       "required": ["id", "email", "username"]
     },
     "WatchlistEntry": {
       "title": "WatchlistEntry",
       "type": "object",
-      "description": "A descriptive movie entry containing full metadata.",
+      "description": "A detailed movie record containing original metadata for clear database visualization.",
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
@@ -77,7 +74,7 @@
     "WatchParty": {
       "title": "WatchParty",
       "type": "object",
-      "description": "A collaborative movie watching room.",
+      "description": "A collaborative room for group movie experiences.",
       "properties": {
         "id": { "type": "string" },
         "hostId": { "type": "string" },
@@ -99,11 +96,11 @@
   "firestore": {
     "/users/{userId}": {
       "schema": { "$ref": "#/backend/entities/UserProfile" },
-      "description": "User profiles and recursive personal data."
+      "description": "Root path for user data."
     },
     "/users/{userId}/watchlist/{movieId}": {
       "schema": { "$ref": "#/backend/entities/WatchlistEntry" },
-      "description": "The user's personal movie collection."
+      "description": "The user's descriptive movie collection."
     },
     "/users/{userId}/sceneMemories/{memoryId}": {
       "schema": { "$ref": "#/backend/entities/SceneMemory" },
@@ -111,23 +108,11 @@
     },
     "/users/{userId}/notifications/{notifId}": {
       "schema": { "type": "object" },
-      "description": "Personal party invites and alerts."
+      "description": "Personal alerts and party invites."
     },
     "/watchParties/{partyId}": {
       "schema": { "$ref": "#/backend/entities/WatchParty" },
-      "description": "Watch party room metadata."
-    },
-    "/watchParties/{partyId}/members/{userId}": {
-      "schema": { "type": "object" },
-      "description": "Party participants."
-    },
-    "/watchParties/{partyId}/nominations/{nomId}": {
-      "schema": { "type": "object" },
-      "description": "Movie suggestions for the party."
-    },
-    "/comments/{commentId}": {
-      "schema": { "type": "object" },
-      "description": "Global movie discussions."
+      "description": "Watch party room data."
     }
   }
 }

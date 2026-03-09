@@ -14,45 +14,23 @@ service cloud.firestore {
 
     // --- Rules ---
 
-    // Users have full authority over their own profile and all its subcollections
-    match /users/{userId} {
+    // Users have full authority over their own profile and all its subcollections recursively
+    match /users/{userId}/{allPaths=**} {
       allow read, write: if isOwner(userId);
-      
-      // Explicit rules for subcollections to avoid any listing ambiguity
-      match /watchlist/{id} {
-        allow read, write: if isOwner(userId);
-      }
-      
-      match /sceneMemories/{id} {
-        allow read, write: if isOwner(userId);
-      }
-      
-      match /notifications/{id} {
-        allow read, write: if isOwner(userId);
-      }
-
-      // Catch-all for any other recursive data
-      match /{allSubcollections=**} {
-        allow read, write: if isOwner(userId);
-      }
     }
 
-    // Watch Parties are collaborative spaces
+    // Watch Parties are collaborative spaces for all signed-in users
     match /watchParties/{partyId} {
-      allow read, create: if isSignedIn();
-      allow update: if isSignedIn();
+      allow read, create, update: if isSignedIn();
       allow delete: if isSignedIn() && resource.data.hostId == request.auth.uid;
 
-      match /members/{memberId} {
-        allow read, write: if isSignedIn();
-      }
-
-      match /nominations/{nomId} {
+      // Allow all signed-in users to interact with members and nominations
+      match /{allSubcollections=**} {
         allow read, write: if isSignedIn();
       }
     }
 
-    // Comments are public to read, restricted to write
+    // Comments are public to read, restricted to signed-in authors for writing
     match /comments/{commentId} {
       allow read: if true;
       allow create: if isSignedIn();

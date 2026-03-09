@@ -2,13 +2,13 @@
 "use client";
 
 import Image from 'next/image';
-import { Star, Plus, Check, Info } from 'lucide-react';
+import { Star, Plus, Check, Info, Heart } from 'lucide-react';
 import { Movie, WatchlistEntry } from '@/app/lib/types';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
-import { useUser, useFirestore, useMemoFirebase, useCollection, addDocumentNonBlocking } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { useUser, useFirestore, useMemoFirebase, useCollection, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { collection, query, where, doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import MovieDetailsDialog from './movie-details-dialog';
@@ -35,7 +35,7 @@ export default function MovieCard({ movie, variant = 'grid' }: MovieCardProps) {
   const { data: watchlistEntries } = useCollection<WatchlistEntry>(watchlistRef);
   const entry = watchlistEntries?.[0];
 
-  const handleAddToWatchlist = (e: React.MouseEvent) => {
+  const handleAddToQueue = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!user) {
       toast({ variant: "destructive", title: "Sign in required", description: "You need to be signed in to add movies." });
@@ -54,8 +54,38 @@ export default function MovieCard({ movie, variant = 'grid' }: MovieCardProps) {
       addedDate: new Date().toISOString(),
       isWatched: false,
       rewatchCount: 0,
+      isFavorite: false,
     });
-    toast({ title: "Added to watchlist", description: `${movie.title} is now tracked.` });
+    toast({ title: "Added to Queue", description: `${movie.title} is now tracked.` });
+  };
+
+  const handleToggleFavorite = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) {
+      toast({ variant: "destructive", title: "Sign in required" });
+      return;
+    }
+
+    if (entry) {
+      updateDocumentNonBlocking(doc(firestore, `users/${user.uid}/watchlist`, entry.id), {
+        isFavorite: !entry.isFavorite
+      });
+      toast({ 
+        title: !entry.isFavorite ? "Marked as Favorite" : "Removed from Favorites",
+        description: movie.title 
+      });
+    } else {
+      addDocumentNonBlocking(collection(firestore, `users/${user.uid}/watchlist`), {
+        userId: user.uid,
+        movieId: movie.tmdbId,
+        movieData: movie,
+        addedDate: new Date().toISOString(),
+        isWatched: false,
+        rewatchCount: 0,
+        isFavorite: true,
+      });
+      toast({ title: "Added to Favorites", description: `${movie.title} added to your queue.` });
+    }
   };
 
   return (
@@ -88,6 +118,11 @@ export default function MovieCard({ movie, variant = 'grid' }: MovieCardProps) {
               <Check className="w-3 h-3 mr-1" /> WATCHED
             </Badge>
           )}
+          {entry?.isFavorite && (
+            <Badge className="bg-primary/80 backdrop-blur-md text-white border-none font-bold">
+              <Heart className="w-3 h-3 mr-1 fill-white" /> FAV
+            </Badge>
+          )}
         </div>
 
         {/* Content */}
@@ -97,22 +132,37 @@ export default function MovieCard({ movie, variant = 'grid' }: MovieCardProps) {
             {movie.genres.join(' • ')}
           </p>
           
-          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <div className="flex items-center gap-2">
+              <Button 
+                size="sm" 
+                className="flex-1 bg-primary hover:bg-primary/80 h-8 text-[10px] font-bold uppercase tracking-wider"
+                onClick={handleAddToQueue}
+                disabled={!!entry}
+              >
+                {entry ? <Check className="w-3 h-3 mr-1" /> : <Plus className="w-3 h-3 mr-1" />}
+                {entry ? "In Queue" : "Add to Queue"}
+              </Button>
+              <Button 
+                size="sm" 
+                variant={entry?.isFavorite ? "default" : "secondary"}
+                className={cn(
+                  "flex-1 h-8 text-[10px] font-bold uppercase tracking-wider",
+                  !entry?.isFavorite && "glass border-white/10 hover:bg-white/20"
+                )}
+                onClick={handleToggleFavorite}
+              >
+                <Heart className={cn("w-3 h-3 mr-1", entry?.isFavorite && "fill-white")} />
+                Fav
+              </Button>
+            </div>
             <Button 
               size="sm" 
-              className="flex-1 bg-primary hover:bg-primary/80 h-8"
-              onClick={handleAddToWatchlist}
-              disabled={!!entry}
+              variant="ghost" 
+              className="w-full glass border-white/5 hover:bg-white/10 h-8 text-[10px] font-bold uppercase tracking-wider text-white/60"
+              onClick={(e) => { e.stopPropagation(); setDetailsOpen(true); }}
             >
-              {entry ? <Check className="w-4 h-4 mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
-              {entry ? "Tracked" : "Watchlist"}
-            </Button>
-            <Button 
-              size="icon" 
-              variant="secondary" 
-              className="glass border-white/10 hover:bg-white/20 h-8 w-8"
-            >
-              <Info className="w-4 h-4" />
+              <Info className="w-3 h-3 mr-1" /> Details
             </Button>
           </div>
         </div>

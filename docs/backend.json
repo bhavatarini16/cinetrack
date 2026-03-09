@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -241,6 +242,10 @@
         "rewatchCount": {
           "type": "number",
           "description": "The number of times the user has rewatched this movie."
+        },
+        "isFavorite": {
+          "type": "boolean",
+          "description": "Indicates if the user has marked this movie as a favorite."
         }
       },
       "required": [

@@ -25,6 +25,7 @@ export interface WatchlistEntry {
   personalRating?: number;
   notes?: string;
   rewatchCount: number;
+  isFavorite?: boolean;
 }
 
 export interface CinemaPersonality {

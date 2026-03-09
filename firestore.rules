@@ -44,66 +44,49 @@ service cloud.firestore {
 
     // --- Collection Rules ---
 
+    // Top-level users match
     match /users/{userId} {
       allow get, list: if isOwner(userId) || isFriendOf(userId);
       allow create: if isOwner(userId); 
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
 
+      // Explicitly allow subcollections for the owner and their friends
       match /watchlist/{watchlistEntryId} {
-        allow get, list: if isOwner(userId) || isFriendOf(userId);
+        allow read: if isOwner(userId) || isFriendOf(userId);
         allow create: if isOwner(userId) && request.resource.data.userId == userId;
         allow update: if isExistingOwner(userId) && request.resource.data.userId == userId;
         allow delete: if isExistingOwner(userId);
       }
 
       match /sceneMemories/{memoryId} {
-        allow get, list: if isOwner(userId) || isFriendOf(userId);
+        allow read: if isOwner(userId) || isFriendOf(userId);
         allow create: if isOwner(userId) && request.resource.data.userId == userId;
         allow update: if isExistingOwner(userId) && request.resource.data.userId == userId;
         allow delete: if isExistingOwner(userId);
       }
     }
 
+    // Movies are read-only for all signed-in users
     match /movies/{movieId} {
       allow read: if isSignedIn();
-      allow create, update, delete: if false;
+      allow write: if false;
     }
 
-    match /genres/{genreId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if false;
-    }
-
-    match /persons/{personId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if false;
-    }
-
-    match /moviePersonalityTypes/{typeId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if false;
-    }
-
-    match /friendships/{friendshipId} {
-      allow read: if isSignedIn() && (resource.data.requesterId == request.auth.uid || resource.data.addresseeId == request.auth.uid);
-      allow create: if isSignedIn() && request.resource.data.requesterId == request.auth.uid;
-      allow update: if isSignedIn() && (resource.data.requesterId == request.auth.uid || resource.data.addresseeId == request.auth.uid);
-      allow delete: if isSignedIn() && (resource.data.requesterId == request.auth.uid || resource.data.addresseeId == request.auth.uid);
-    }
-
+    // Social comments are readable by any authenticated user
     match /comments/{commentId} {
       allow read: if isSignedIn();
-      allow create: if isDataOwner('userId');
-      allow update: if isExistingDataOwner('userId') && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingDataOwner('userId');
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
-    match /reactions/{reactionId} {
+    // Other metadata collections
+    match /genres/{genreId} {
       allow read: if isSignedIn();
-      allow create: if isDataOwner('userId');
-      allow update: if isExistingDataOwner('userId') && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingDataOwner('userId');
+    }
+    match /moviePersonalityTypes/{typeId} {
+      allow read: if isSignedIn();
     }
   }
 }

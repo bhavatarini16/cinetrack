@@ -5,7 +5,7 @@ import { Movie, WatchlistEntry, Comment, SceneMemory } from "@/app/lib/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Star, Calendar, Clock, User, Plus, Check, Trash2, Edit3, MessageSquare, Send, Lock, Bell, BellOff, Video, Quote, StickyNote } from "lucide-react";
+import { Star, Calendar, Clock, Plus, Check, Trash2, Edit3, MessageSquare, Send, Lock, Bell, BellOff, Video, Quote, StickyNote } from "lucide-react";
 import Image from "next/image";
 import { useUser, useFirestore, useMemoFirebase, useCollection, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
 import { collection, query, where, doc, orderBy, limit } from "firebase/firestore";
@@ -28,6 +28,7 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  
   const [editingNotes, setEditingNotes] = useState(false);
   const [tempNotes, setTempNotes] = useState("");
   const [tempRating, setTempRating] = useState<number>(0);
@@ -40,7 +41,7 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
   const [memoryNote, setMemoryNote] = useState("");
 
   const watchlistRef = useMemoFirebase(() => {
-    if (!user || !movie || !firestore || !isOpen) return null;
+    if (!user?.uid || !movie?.tmdbId || !firestore || !isOpen) return null;
     return query(
       collection(firestore, `users/${user.uid}/watchlist`),
       where("movieId", "==", movie.tmdbId)
@@ -52,6 +53,7 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
 
   const commentsRef = useMemoFirebase(() => {
     if (!isOpen || !movie?.tmdbId || !user?.uid || !firestore) return null;
+    // Removed orderBy to avoid index requirement for initial dev
     return query(
       collection(firestore, `comments`),
       where("watchlistEntryId", "==", movie.tmdbId),
@@ -122,7 +124,7 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
     updateDocumentNonBlocking(doc(firestore, `users/${user.uid}/watchlist`, entry.id), {
       isWatched: !entry.isWatched,
       watchDate: !entry.isWatched ? new Date().toISOString() : null,
-      rewatchCount: entry.isWatched ? (entry.rewatchCount || 0) + 1 : (entry.rewatchCount || 0),
+      rewatchCount: !entry.isWatched ? (entry.rewatchCount || 0) + 1 : (entry.rewatchCount || 0),
       remindMe: false
     });
     toast({ title: entry.isWatched ? "Reset to unwatched" : "Marked as experienced" });
@@ -428,7 +430,7 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
                            <div key={comment.id} className="flex gap-3 group">
                              <Avatar className="w-8 h-8 shrink-0">
                                <AvatarImage src={comment.avatarUrl} />
-                               <AvatarFallback>{comment.username[0]}</AvatarFallback>
+                               <AvatarFallback>{comment.username?.[0] || 'U'}</AvatarFallback>
                              </Avatar>
                              <div className="space-y-1">
                                <div className="flex items-center gap-2">

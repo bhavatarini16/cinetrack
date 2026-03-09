@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { Search, TrendingUp, Filter, PlayCircle, Loader2, Calendar, Star } from 'lucide-react';
+import { Search, TrendingUp, Filter, PlayCircle, Loader2, Calendar, Star, Sparkles } from 'lucide-react';
 import { searchMovies, getTrendingMovies } from './lib/tmdb-service';
 import MovieCard from '@/components/movie-card';
 import { Input } from '@/components/ui/input';
@@ -15,10 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import RandomMoviePicker from '@/components/random-movie-picker';
+import { useUser } from '@/firebase';
 
 const GENRES = ["Action", "Sci-Fi", "Drama", "Thriller", "Comedy", "Crime", "Mystery"];
 
 export default function Home() {
+  const { user } = useUser();
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -69,10 +72,10 @@ export default function Home() {
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-            <Button size="lg" className="bg-primary hover:bg-primary/80 text-white rounded-full px-10 h-14 text-lg shadow-2xl shadow-primary/30">
+            <Button size="lg" className="bg-primary hover:bg-primary/80 text-white rounded-full px-10 h-14 text-lg shadow-2xl shadow-primary/30 uppercase tracking-widest font-headline">
               <PlayCircle className="w-6 h-6 mr-2" /> Start Exploring
             </Button>
-            <Button size="lg" variant="outline" className="glass border-white/10 hover:bg-white/5 text-white rounded-full px-10 h-14">
+            <Button size="lg" variant="outline" className="glass border-white/10 hover:bg-white/5 text-white rounded-full px-10 h-14 uppercase tracking-widest font-headline">
               View Your Pulse
             </Button>
           </div>
@@ -89,7 +92,7 @@ export default function Home() {
               </div>
               <div>
                 <h2 className="text-4xl font-headline font-bold text-white tracking-tight">DISCOVERY</h2>
-                <p className="text-white/40 text-sm">Find your next favorite film</p>
+                <p className="text-white/40 text-sm font-bold uppercase tracking-widest">Find your next favorite film</p>
               </div>
             </div>
 
@@ -106,20 +109,20 @@ export default function Home() {
               
               <div className="flex items-center gap-3">
                 <Select value={selectedGenre} onValueChange={setSelectedGenre}>
-                  <SelectTrigger className="w-[140px] h-14 glass border-white/10 rounded-2xl">
+                  <SelectTrigger className="w-[140px] h-14 glass border-white/10 rounded-2xl text-white">
                     <SelectValue placeholder="Genre" />
                   </SelectTrigger>
-                  <SelectContent className="glass border-white/10">
+                  <SelectContent className="glass border-white/10 text-white">
                     <SelectItem value="all">All Genres</SelectItem>
                     {GENRES.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
                   </SelectContent>
                 </Select>
 
                 <Select value={minRating} onValueChange={setMinRating}>
-                  <SelectTrigger className="w-[120px] h-14 glass border-white/10 rounded-2xl">
+                  <SelectTrigger className="w-[120px] h-14 glass border-white/10 rounded-2xl text-white">
                     <SelectValue placeholder="Min Rating" />
                   </SelectTrigger>
-                  <SelectContent className="glass border-white/10">
+                  <SelectContent className="glass border-white/10 text-white">
                     <SelectItem value="0">0+ Stars</SelectItem>
                     <SelectItem value="7">7+ Stars</SelectItem>
                     <SelectItem value="8">8+ Stars</SelectItem>
@@ -133,7 +136,7 @@ export default function Home() {
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-32 space-y-4">
               <Loader2 className="w-12 h-12 text-primary animate-spin" />
-              <p className="text-white/40 animate-pulse">Syncing with cinematic database...</p>
+              <p className="text-white/40 animate-pulse font-bold uppercase tracking-[0.2em] text-xs">Syncing with cinematic database...</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
@@ -146,13 +149,15 @@ export default function Home() {
               {filteredMovies.length === 0 && (
                 <div className="col-span-full py-32 text-center space-y-4">
                   <p className="text-white/20 text-2xl italic font-headline">The archives are empty for "{search}"</p>
-                  <Button variant="link" onClick={() => handleSearch('')} className="text-primary">Clear all filters</Button>
+                  <Button variant="link" onClick={() => handleSearch('')} className="text-primary font-bold uppercase tracking-widest text-xs">Clear all filters</Button>
                 </div>
               )}
             </div>
           )}
         </div>
       </section>
+
+      {user && <RandomMoviePicker />}
     </div>
   );
 }

@@ -5,11 +5,11 @@ import { Movie, WatchlistEntry, Comment, SceneMemory } from "@/app/lib/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Star, Calendar, Clock, Plus, Check, Trash2, Edit3, MessageSquare, Send, Lock, Bell, BellOff, Video, Quote, StickyNote } from "lucide-react";
 import Image from "next/image";
 import { useUser, useFirestore, useMemoFirebase, useDoc, useCollection, addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
-import { collection, query, where, doc, orderBy, limit } from "firebase/firestore";
+import { collection, query, where, doc, limit } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useMemo } from "react";
 import { Textarea } from "./ui/textarea";
@@ -41,7 +41,6 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
   const [memoryQuote, setMemoryQuote] = useState("");
   const [memoryNote, setMemoryNote] = useState("");
 
-  // Using useDoc directly instead of a query for the watchlist entry is more efficient
   const watchlistDocRef = useMemoFirebase(() => {
     if (!user?.uid || !movie?.tmdbId || !firestore) return null;
     return doc(firestore, `users/${user.uid}/watchlist/${movie.tmdbId}`);
@@ -50,22 +49,22 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
   const { data: entry } = useDoc<WatchlistEntry>(watchlistDocRef);
 
   const commentsRef = useMemoFirebase(() => {
-    if (!isOpen || !movie?.tmdbId || !user?.uid || !firestore) return null;
+    if (!isOpen || !movie?.tmdbId || !firestore) return null;
     return query(
       collection(firestore, `comments`),
       where("watchlistEntryId", "==", movie.tmdbId),
       limit(20)
     );
-  }, [isOpen, movie?.tmdbId, user?.uid, firestore]);
+  }, [isOpen, movie?.tmdbId, firestore]);
 
   const { data: comments, isLoading: isCommentsLoading } = useCollection<Comment>(commentsRef);
 
   const sceneMemoriesRef = useMemoFirebase(() => {
     if (!isOpen || !movie?.tmdbId || !user?.uid || !firestore) return null;
+    // Simplified query (no orderBy) to avoid missing index errors in production
     return query(
       collection(firestore, `users/${user.uid}/sceneMemories`),
-      where("movieId", "==", movie.tmdbId),
-      orderBy("addedDate", "desc")
+      where("movieId", "==", movie.tmdbId)
     );
   }, [isOpen, movie?.tmdbId, user?.uid, firestore]);
 
@@ -334,7 +333,7 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
                   </div>
 
                   {editingNotes ? (
-                    <Card className="glass border-primary/20 p-6 space-y-6">
+                    <div className="glass border-primary/20 p-6 space-y-6 rounded-2xl">
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <label className="text-xs font-bold text-white/50 uppercase tracking-widest">Personal Rating</label>
@@ -361,7 +360,7 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
                         <Button className="flex-1 bg-primary hover:bg-primary/80 h-12" onClick={handleSaveNotes}>Commit to Memory</Button>
                         <Button variant="ghost" className="h-12" onClick={() => setEditingNotes(false)}>Discard</Button>
                       </div>
-                    </Card>
+                    </div>
                   ) : (
                     <div className="bg-white/5 rounded-2xl p-6 border border-white/5 space-y-4">
                       {entry.personalRating ? (

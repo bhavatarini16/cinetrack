@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
@@ -29,7 +30,7 @@ export default function WatchlistPage() {
   const firestore = useFirestore();
 
   const watchlistRef = useMemoFirebase(() => {
-    if (!user) return null;
+    if (!user || !firestore) return null;
     return query(
       collection(firestore, `users/${user.uid}/watchlist`),
       orderBy("addedDate", "desc")
@@ -61,9 +62,10 @@ export default function WatchlistPage() {
     );
   }
 
-  const watchlist = entries?.filter(e => !e.isWatched && new Date(e.movieData.releaseDate) <= new Date()) || [];
+  // Filter entries with safety checks to prevent runtime errors
+  const watchlist = entries?.filter(e => e.movieData && !e.isWatched && new Date(e.movieData.releaseDate) <= new Date()) || [];
   const watched = entries?.filter(e => e.isWatched) || [];
-  const upcoming = entries?.filter(e => !e.isWatched && new Date(e.movieData.releaseDate) > new Date()) || [];
+  const upcoming = entries?.filter(e => e.movieData && !e.isWatched && new Date(e.movieData.releaseDate) > new Date()) || [];
   const favorites = entries?.filter(e => e.isFavorite) || [];
 
   return (
@@ -121,7 +123,6 @@ export default function WatchlistPage() {
                 <div className="h-64 glass border-white/5 rounded-2xl flex flex-col items-center justify-center text-white/30 italic">
                   <Bell className="w-12 h-12 mb-4 opacity-20" />
                   <p>No upcoming releases tracked.</p>
-                  <p className="text-[10px] mt-2 text-white/20 uppercase tracking-widest">Add unreleased films to get notified.</p>
                 </div>
               )}
             </TabsContent>
@@ -162,20 +163,33 @@ export default function WatchlistPage() {
                     favorites.map(entry => (
                       <div key={entry.id} className="group relative flex gap-4 bg-white/5 rounded-xl p-3 border border-white/5 hover:border-primary/40 transition-all cursor-pointer">
                         <div className="relative w-20 aspect-[2/3] rounded-lg overflow-hidden shrink-0 shadow-lg">
-                          <Image src={entry.movieData.posterUrl} alt={entry.movieData.title} fill className="object-cover" />
+                          {entry.movieData?.posterUrl && (
+                            <Image 
+                              src={entry.movieData.posterUrl} 
+                              alt={entry.movieData.title || "Movie Poster"} 
+                              fill 
+                              className="object-cover" 
+                            />
+                          )}
                         </div>
                         <div className="flex-1 min-w-0 py-1">
                           <h4 className="text-white font-bold font-headline text-sm line-clamp-2 leading-tight group-hover:text-primary transition-colors">
-                            {entry.movieData.title}
+                            {entry.movieData?.title || "Unknown Title"}
                           </h4>
                           <div className="flex items-center gap-2 mt-2">
                             <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
-                            <span className="text-xs text-white/40">{entry.movieData.tmdbRating}</span>
-                            <span className="text-[10px] text-white/20 uppercase tracking-widest">• {entry.movieData.releaseDate.split('-')[0]}</span>
+                            <span className="text-xs text-white/40">{entry.movieData?.tmdbRating || "N/A"}</span>
+                            {entry.movieData?.releaseDate && (
+                              <span className="text-[10px] text-white/20 uppercase tracking-widest">
+                                • {entry.movieData.releaseDate.split('-')[0]}
+                              </span>
+                            )}
                           </div>
                           <div className="mt-3 flex gap-2">
                              {entry.isWatched && <Badge variant="outline" className="text-[8px] border-green-500/30 text-green-500 py-0 px-2">Watched</Badge>}
-                             <Badge variant="outline" className="text-[8px] border-white/10 text-white/40 py-0 px-2 uppercase">{entry.movieData.genres[0] || 'Film'}</Badge>
+                             <Badge variant="outline" className="text-[8px] border-white/10 text-white/40 py-0 px-2 uppercase">
+                               {entry.movieData?.genres?.[0] || 'Film'}
+                             </Badge>
                           </div>
                         </div>
                       </div>

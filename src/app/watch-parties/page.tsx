@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -27,6 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 export default function WatchPartiesPage() {
   const { user } = useUser();

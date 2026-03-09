@@ -1,20 +1,36 @@
 
 "use client";
 
-import { useState } from 'react';
-import { Search, TrendingUp, Filter, PlayCircle } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Search, TrendingUp, Filter, PlayCircle, Loader2 } from 'lucide-react';
 import { MOCK_MOVIES } from './lib/mock-data';
 import MovieCard from '@/components/movie-card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Movie } from './lib/types';
 
 export default function Home() {
   const [search, setSearch] = useState('');
-  const [movies, setMovies] = useState(MOCK_MOVIES);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const filteredMovies = movies.filter(m => 
+  // Convert mock data to Movie interface
+  const initialMovies: Movie[] = useMemo(() => MOCK_MOVIES.map(m => ({
+    id: m.id,
+    tmdbId: m.id,
+    title: m.title,
+    genres: m.genres,
+    tmdbRating: m.tmdbRating,
+    releaseDate: m.releaseDate,
+    overview: m.overview,
+    posterUrl: m.posterUrl,
+    runtime: 120, // Default for mock
+    cast: ["Nolan's Regulars"], // Default for mock
+    director: "Christopher Nolan" // Default for mock
+  })), []);
+
+  const filteredMovies = useMemo(() => initialMovies.filter(m => 
     m.title.toLowerCase().includes(search.toLowerCase())
-  );
+  ), [initialMovies, search]);
 
   return (
     <div className="pt-16 min-h-screen">
@@ -56,7 +72,11 @@ export default function Home() {
 
           <div className="flex items-center gap-4 w-full md:w-auto">
             <div className="relative w-full md:w-80">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 w-4 h-4" />
+              {isLoading ? (
+                <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 text-primary w-4 h-4 animate-spin" />
+              ) : (
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 w-4 h-4" />
+              )}
               <Input 
                 placeholder="Search movies..." 
                 className="bg-white/5 border-white/10 pl-10 h-11 focus:ring-primary focus:border-primary text-white"
@@ -75,10 +95,6 @@ export default function Home() {
             <MovieCard 
               key={movie.id} 
               movie={movie} 
-              onAction={(id, action) => {
-                // Handle action logic
-                console.log(id, action);
-              }}
             />
           ))}
           {filteredMovies.length === 0 && (

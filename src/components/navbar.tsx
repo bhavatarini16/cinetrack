@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Film, List, BarChart3, Users, Sparkles, User, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
+import { useUser } from '@/firebase';
 
 const navItems = [
   { href: '/', label: 'Discovery', icon: Search },
@@ -18,6 +19,7 @@ const navItems = [
 
 export default function Navbar() {
   const pathname = usePathname();
+  const { user } = useUser();
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass-dark border-b border-white/5 h-16 flex items-center px-4 md:px-8 justify-between">
@@ -56,8 +58,15 @@ export default function Navbar() {
           <Search className="w-5 h-5" />
         </Button>
         <Link href="/profile">
-          <Button size="icon" variant="outline" className="rounded-full border-white/10 bg-white/5 hover:bg-primary hover:text-white transition-all">
-            <User className="w-5 h-5" />
+          <Button size="icon" variant="outline" className={cn(
+            "rounded-full border-white/10 bg-white/5 hover:bg-primary hover:text-white transition-all overflow-hidden",
+            pathname === '/profile' && "border-primary text-primary"
+          )}>
+            {user ? (
+              <img src={`https://picsum.photos/seed/${user.uid}/100`} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              <User className="w-5 h-5" />
+            )}
           </Button>
         </Link>
       </div>

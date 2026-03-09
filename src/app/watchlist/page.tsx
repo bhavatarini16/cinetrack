@@ -1,17 +1,52 @@
 
 "use client";
 
-import { useState } from 'react';
-import { MOCK_MOVIES } from '../lib/mock-data';
+import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
+import { collection, query, orderBy } from 'firebase/firestore';
 import MovieCard from '@/components/movie-card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { List, CheckCircle2, Clock } from 'lucide-react';
+import { List, CheckCircle2, Clock, Loader2, PlayCircle } from 'lucide-react';
+import { WatchlistEntry } from '../lib/types';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 export default function WatchlistPage() {
-  const [movies, setMovies] = useState(MOCK_MOVIES);
+  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
 
-  const watchlist = movies.filter(m => m.status === 'watchlist');
-  const watched = movies.filter(m => m.status === 'watched');
+  const watchlistRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(
+      collection(firestore, `users/${user.uid}/watchlist`),
+      orderBy("addedDate", "desc")
+    );
+  }, [user, firestore]);
+
+  const { data: entries, isLoading: isDataLoading } = useCollection<WatchlistEntry>(watchlistRef);
+
+  if (isUserLoading || isDataLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="pt-24 min-h-screen flex items-center justify-center px-4">
+        <div className="text-center space-y-6 max-w-md glass border-white/5 p-12 rounded-3xl">
+          <PlayCircle className="w-16 h-16 text-primary mx-auto opacity-50" />
+          <h1 className="text-3xl font-headline font-bold text-white">Join the Cinema</h1>
+          <p className="text-white/50">Sign in to start tracking your journey through film and get personalized analytics.</p>
+          <Button className="w-full bg-primary h-12 text-lg font-headline">Get Started</Button>
+        </div>
+      </div>
+    );
+  }
+
+  const watchlist = entries?.filter(e => !e.isWatched) || [];
+  const watched = entries?.filter(e => e.isWatched) || [];
 
   return (
     <div className="pt-24 min-h-screen max-w-7xl mx-auto px-4 md:px-8 pb-16">
@@ -37,14 +72,15 @@ export default function WatchlistPage() {
         <TabsContent value="watchlist" className="animate-in fade-in slide-in-from-bottom-2 duration-500">
           {watchlist.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-              {watchlist.map(movie => (
-                <MovieCard key={movie.id} movie={movie} />
+              {watchlist.map(entry => (
+                <MovieCard key={entry.id} movie={entry.movieData} />
               ))}
             </div>
           ) : (
             <div className="h-64 glass border-white/5 rounded-2xl flex flex-col items-center justify-center text-white/30 italic">
               <List className="w-12 h-12 mb-4 opacity-20" />
-              Your watchlist is empty
+              <p>Your watchlist is empty.</p>
+              <Link href="/" className="mt-4 text-primary hover:underline not-italic">Go discover movies</Link>
             </div>
           )}
         </TabsContent>
@@ -52,14 +88,14 @@ export default function WatchlistPage() {
         <TabsContent value="watched" className="animate-in fade-in slide-in-from-bottom-2 duration-500">
            {watched.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-              {watched.map(movie => (
-                <MovieCard key={movie.id} movie={movie} />
+              {watched.map(entry => (
+                <MovieCard key={entry.id} movie={entry.movieData} />
               ))}
             </div>
           ) : (
             <div className="h-64 glass border-white/5 rounded-2xl flex flex-col items-center justify-center text-white/30 italic">
               <CheckCircle2 className="w-12 h-12 mb-4 opacity-20" />
-              You haven't marked any movies as watched yet
+              <p>You haven't marked any movies as watched yet.</p>
             </div>
           )}
         </TabsContent>

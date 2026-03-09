@@ -1,17 +1,30 @@
 
 export interface Movie {
   id: string;
+  tmdbId: string;
   title: string;
   genres: string[];
-  rating: number; // User rating 1-10
-  tmdbRating: number; // Official rating
+  tmdbRating: number;
   releaseDate: string;
   overview: string;
   posterUrl: string;
   backdropUrl?: string;
-  status: 'watchlist' | 'watched' | 'none';
-  userNotes?: string;
-  addedAt: string;
+  runtime?: number;
+  cast?: string[];
+  director?: string;
+}
+
+export interface WatchlistEntry {
+  id: string;
+  userId: string;
+  movieId: string;
+  movieData: Movie; // Denormalized for easy listing
+  addedDate: string;
+  isWatched: boolean;
+  watchDate?: string;
+  personalRating?: number;
+  notes?: string;
+  rewatchCount: number;
 }
 
 export interface CinemaPersonality {
@@ -20,7 +33,11 @@ export interface CinemaPersonality {
 }
 
 export interface UserProfile {
-  name: string;
-  avatar: string;
+  id: string;
+  username: string;
+  email: string;
+  avatarUrl: string;
+  dateJoined: string;
   personality?: CinemaPersonality;
+  favoriteGenreIds?: string[];
 }

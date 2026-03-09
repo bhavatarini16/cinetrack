@@ -40,7 +40,10 @@
             "releaseDate": { "type": "string" },
             "overview": { "type": "string" },
             "posterUrl": { "type": "string" },
-            "backdropUrl": { "type": "string" }
+            "backdropUrl": { "type": "string" },
+            "runtime": { "type": "number" },
+            "director": { "type": "string" },
+            "cast": { "type": "array", "items": { "type": "string" } }
           }
         },
         "addedDate": { "type": "string", "format": "date-time" },

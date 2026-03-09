@@ -15,10 +15,23 @@ service cloud.firestore {
     // --- Rules ---
 
     // Users have full authority over their own profile and all its nested sub-collections
-    // Using recursive match {allPaths=**} to ensure 'list' and 'get' work for all sub-data
+    // Explicitly matching sub-collections to ensure 'list' operations are correctly authorized
     match /users/{userId} {
       allow read, write: if isOwner(userId);
       
+      match /watchlist/{movieId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      match /sceneMemories/{memoryId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      match /notifications/{notifId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Catch-all for any other nested data within a user's tree
       match /{allPaths=**} {
         allow read, write: if isOwner(userId);
       }

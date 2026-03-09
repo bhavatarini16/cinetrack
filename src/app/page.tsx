@@ -1,8 +1,7 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { Search, TrendingUp, Filter, PlayCircle, Loader2, Calendar, Star, Sparkles, Bell } from 'lucide-react';
+import { Search, TrendingUp, Filter, PlayCircle, Loader2, Calendar, Star, Sparkles, Bell, Tv, Users } from 'lucide-react';
 import { searchMovies, getTrendingMovies } from './lib/tmdb-service';
 import MovieCard from '@/components/movie-card';
 import { Input } from '@/components/ui/input';
@@ -17,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import RandomMoviePicker from '@/components/random-movie-picker';
 import { useUser } from '@/firebase';
+import Link from 'next/link';
 
 const GENRES = ["Action", "Sci-Fi", "Drama", "Thriller", "Comedy", "Crime", "Mystery"];
 
@@ -68,7 +68,7 @@ export default function Home() {
   return (
     <div className="pt-16 min-h-screen">
       {/* Hero Section */}
-      <section className="relative h-[70vh] w-full flex items-center justify-center overflow-hidden">
+      <section className="relative h-[75vh] w-full flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/hero3/1920/1080')] bg-cover bg-center">
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/20" />
         </div>
@@ -79,16 +79,39 @@ export default function Home() {
             CINE<span className="text-gradient">TRACK</span>
           </h1>
           <p className="text-lg text-white/70 max-w-2xl mx-auto leading-relaxed font-light">
-            Architect your cinematic journey. Track history, analyze tastes, and connect with fellow cinephiles using AI insights.
+            Architect your cinematic journey. Track history, analyze tastes, and host global watch parties using AI insights.
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
             <Button size="lg" className="bg-primary hover:bg-primary/80 text-white rounded-full px-10 h-14 text-lg shadow-2xl shadow-primary/30 uppercase tracking-widest font-headline">
               <PlayCircle className="w-6 h-6 mr-2" /> Start Exploring
             </Button>
-            <Button size="lg" variant="outline" className="glass border-white/10 hover:bg-white/5 text-white rounded-full px-10 h-14 uppercase tracking-widest font-headline">
-              View Your Pulse
-            </Button>
+            <Link href="/watch-parties">
+              <Button size="lg" variant="outline" className="glass border-white/10 hover:bg-white/5 text-white rounded-full px-10 h-14 uppercase tracking-widest font-headline">
+                <Tv className="w-6 h-6 mr-2" /> Host Party
+              </Button>
+            </Link>
+          </div>
+
+          <div className="flex items-center justify-center gap-8 pt-8 opacity-50">
+            <Link href="/watch-parties" className="flex flex-col items-center gap-2 group cursor-pointer">
+              <div className="w-12 h-12 rounded-full glass border-white/10 flex items-center justify-center group-hover:bg-primary/20 group-hover:border-primary/30 transition-all">
+                <Tv className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-[10px] uppercase tracking-widest font-bold">Parties</span>
+            </Link>
+            <Link href="/friends" className="flex flex-col items-center gap-2 group cursor-pointer">
+              <div className="w-12 h-12 rounded-full glass border-white/10 flex items-center justify-center group-hover:bg-primary/20 group-hover:border-primary/30 transition-all">
+                <Users className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-[10px] uppercase tracking-widest font-bold">Friends</span>
+            </Link>
+            <Link href="/dashboard" className="flex flex-col items-center gap-2 group cursor-pointer">
+              <div className="w-12 h-12 rounded-full glass border-white/10 flex items-center justify-center group-hover:bg-primary/20 group-hover:border-primary/30 transition-all">
+                <TrendingUp className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-[10px] uppercase tracking-widest font-bold">Pulse</span>
+            </Link>
           </div>
         </div>
       </section>

@@ -1,9 +1,8 @@
-
 "use client";
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Film, List, BarChart3, Users, Sparkles, User, Search, LogIn } from 'lucide-react';
+import { Film, List, BarChart3, Users, Sparkles, User, Search, LogIn, Tv } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
 import { useUser } from '@/firebase';
@@ -13,6 +12,7 @@ const navItems = [
   { href: '/watchlist', label: 'Watchlist', icon: List },
   { href: '/dashboard', label: 'Analytics', icon: BarChart3 },
   { href: '/recommendations', label: 'For You', icon: Sparkles },
+  { href: '/watch-parties', label: 'Parties', icon: Tv },
   { href: '/friends', label: 'Friends', icon: Users },
   { href: '/quiz', label: 'Cinema Personality', icon: Film },
 ];

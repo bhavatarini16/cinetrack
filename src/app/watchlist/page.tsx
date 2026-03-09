@@ -77,6 +77,7 @@ export default function WatchlistPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        {/* Main Tabs Column */}
         <div className="lg:col-span-8">
           <Tabs defaultValue="watchlist" className="space-y-8">
             <TabsList className="glass border-white/5 p-1 h-14 w-full md:w-auto">
@@ -142,6 +143,7 @@ export default function WatchlistPage() {
           </Tabs>
         </div>
 
+        {/* Favorites Sidebar Column */}
         <aside className="lg:col-span-4 space-y-6">
           <Card className="glass border-primary/20 overflow-hidden sticky top-24">
             <CardHeader className="bg-primary/10 border-b border-white/5">

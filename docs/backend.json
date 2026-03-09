@@ -4,7 +4,7 @@
     "UserProfile": {
       "title": "UserProfile",
       "type": "object",
-      "description": "Comprehensive user profile with cinema identity and preferences.",
+      "description": "Descriptive user profile with cinema identity and preferences.",
       "properties": {
         "id": { "type": "string" },
         "email": { "type": "string", "format": "email" },
@@ -26,7 +26,7 @@
     "WatchlistEntry": {
       "title": "WatchlistEntry",
       "type": "object",
-      "description": "A detailed movie record containing original metadata for clear database visualization.",
+      "description": "A detailed movie record containing original metadata (titles, posters, genres) for clear database visualization.",
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
@@ -57,7 +57,7 @@
     "SceneMemory": {
       "title": "SceneMemory",
       "type": "object",
-      "description": "A specific cinematic moment with movie context.",
+      "description": "A specific cinematic moment with descriptive movie context.",
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
@@ -96,15 +96,15 @@
   "firestore": {
     "/users/{userId}": {
       "schema": { "$ref": "#/backend/entities/UserProfile" },
-      "description": "Root path for user data."
+      "description": "Root path for descriptive user data."
     },
     "/users/{userId}/watchlist/{movieId}": {
       "schema": { "$ref": "#/backend/entities/WatchlistEntry" },
-      "description": "The user's descriptive movie collection."
+      "description": "User's personal movie collection with original metadata."
     },
     "/users/{userId}/sceneMemories/{memoryId}": {
       "schema": { "$ref": "#/backend/entities/SceneMemory" },
-      "description": "Captured cinematic moments."
+      "description": "Captured cinematic moments with movie titles and posters."
     },
     "/users/{userId}/notifications/{notifId}": {
       "schema": { "type": "object" },
@@ -112,7 +112,7 @@
     },
     "/watchParties/{partyId}": {
       "schema": { "$ref": "#/backend/entities/WatchParty" },
-      "description": "Watch party room data."
+      "description": "Collaborative watch party rooms."
     }
   }
 }

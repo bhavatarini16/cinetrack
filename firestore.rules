@@ -51,19 +51,20 @@ service cloud.firestore {
         return exists(/databases/$(database)/documents/watchParties/$(partyId)/members/$(request.auth.uid));
       }
       
-      function isHost() {
-        return resource != null && resource.data.hostId == request.auth.uid;
+      function getHostId() {
+        return get(/databases/$(database)/documents/watchParties/$(partyId)).data.hostId;
       }
 
-      allow list, get: if isSignedIn(); // Allow discovery for joining
+      allow list, get: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.hostId == request.auth.uid;
-      allow update: if isHost() || (isPartyMember() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'selectedMovieId', 'selectedMovieTitle', 'selectedMoviePoster']));
-      allow delete: if isHost();
+      allow update: if (resource != null && resource.data.hostId == request.auth.uid) || (isPartyMember() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'selectedMovieId', 'selectedMovieTitle', 'selectedMoviePoster']));
+      allow delete: if resource != null && resource.data.hostId == request.auth.uid;
 
       match /members/{memberId} {
         allow read: if isSignedIn();
-        allow create: if isSignedIn() && memberId == request.auth.uid;
-        allow delete: if isSignedIn() && (memberId == request.auth.uid || isHost());
+        // Allow user to join themselves OR allow host to add members
+        allow create: if isSignedIn() && (memberId == request.auth.uid || getHostId() == request.auth.uid);
+        allow delete: if isSignedIn() && (memberId == request.auth.uid || getHostId() == request.auth.uid);
       }
 
       match /nominations/{nominationId} {

@@ -1,11 +1,11 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
-import { doc, collection, query, setDoc, deleteDoc, where } from 'firebase/firestore';
-import { WatchParty, WatchPartyNomination, WatchPartyMember, Movie } from '@/app/lib/types';
+import { doc, collection, query, setDoc, deleteDoc, where, getDoc } from 'firebase/firestore';
+import { WatchParty, WatchPartyNomination, WatchPartyMember, Movie, UserProfile } from '@/app/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -21,7 +21,9 @@ import {
   Trash2,
   Users,
   Sparkles,
-  Play
+  Play,
+  Share2,
+  UserCheck
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +33,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 export default function WatchPartyDetailsPage() {
   const params = useParams();
@@ -43,6 +46,8 @@ export default function WatchPartyDetailsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Movie[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
+  const [potentialFriends, setPotentialFriends] = useState<UserProfile[]>([]);
 
   // Core Data
   const partyRef = useMemoFirebase(() => doc(firestore, 'watchParties', partyId), [firestore, partyId]);
@@ -57,6 +62,29 @@ export default function WatchPartyDetailsPage() {
   const isHost = party?.hostId === user?.uid;
   const isMember = members?.some(m => m.userId === user?.uid);
 
+  // Fetch Host's Friends for Invitation
+  useEffect(() => {
+    if (isHost && isInviting && user) {
+      const fetchFriends = async () => {
+        const userDoc = await getDoc(doc(firestore, `users/${user.uid}`));
+        if (userDoc.exists()) {
+          const userData = userDoc.data() as UserProfile;
+          const friendIds = Object.keys(userData.friends || {});
+          
+          const friendProfiles = await Promise.all(
+            friendIds.map(async (id) => {
+              const fDoc = await getDoc(doc(firestore, `users/${id}`));
+              return fDoc.exists() ? (fDoc.data() as UserProfile) : null;
+            })
+          );
+          
+          setPotentialFriends(friendProfiles.filter(p => p !== null) as UserProfile[]);
+        }
+      };
+      fetchFriends();
+    }
+  }, [isHost, isInviting, user, firestore]);
+
   const handleJoin = async () => {
     if (!user || !firestore) return;
     const memberRef = doc(firestore, `watchParties/${partyId}/members/${user.uid}`);
@@ -68,6 +96,19 @@ export default function WatchPartyDetailsPage() {
       joinedAt: new Date().toISOString()
     });
     toast({ title: "Joined the Party!", description: "You can now nominate and vote for movies." });
+  };
+
+  const handleAddMember = async (friend: UserProfile) => {
+    if (!firestore) return;
+    const memberRef = doc(firestore, `watchParties/${partyId}/members/${friend.id}`);
+    setDoc(memberRef, {
+      id: friend.id,
+      userId: friend.id,
+      username: friend.username,
+      avatarUrl: friend.avatarUrl || `https://picsum.photos/seed/${friend.id}/100`,
+      joinedAt: new Date().toISOString()
+    });
+    toast({ title: "Member Added", description: `${friend.username} has been invited to the party.` });
   };
 
   const handleSearch = async (val: string) => {
@@ -124,6 +165,11 @@ export default function WatchPartyDetailsPage() {
     toast({ title: "Feature Film Locked!", description: `The party is now set for ${nomination.movieTitle}.` });
   };
 
+  const copyInviteLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    toast({ title: "Link Copied!", description: "Share it with your cinema circle." });
+  };
+
   if (isPartyLoading) {
     return (
       <div className="h-screen flex items-center justify-center">
@@ -159,10 +205,63 @@ export default function WatchPartyDetailsPage() {
                 <h1 className="text-5xl font-headline font-bold text-white tracking-tighter uppercase">{party.title}</h1>
                 <p className="text-white/60 text-lg">{party.description}</p>
                </div>
-               {!isMember && (
-                 <Button size="lg" className="bg-primary hover:bg-primary/80" onClick={handleJoin}>
+               {!isMember ? (
+                 <Button size="lg" className="bg-primary hover:bg-primary/80 animate-pulse shadow-2xl shadow-primary/20" onClick={handleJoin}>
                    Join Watch Party
                  </Button>
+               ) : (
+                 <div className="flex gap-2">
+                   {isHost && (
+                     <Dialog open={isInviting} onOpenChange={setIsInviting}>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" className="glass border-white/10">
+                            <UserPlus className="w-4 h-4 mr-2" /> Add Members
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="glass-dark border-white/10 text-white">
+                          <DialogHeader>
+                            <DialogTitle className="font-headline text-xl">INVITE FRIENDS</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4 pt-4">
+                            <p className="text-sm text-white/40">Select friends to add them directly to this watch party.</p>
+                            <ScrollArea className="h-64">
+                              <div className="space-y-3">
+                                {potentialFriends.length > 0 ? (
+                                  potentialFriends.map(friend => {
+                                    const isAlreadyMember = members?.some(m => m.userId === friend.id);
+                                    return (
+                                      <div key={friend.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                                        <div className="flex items-center gap-3">
+                                          <Avatar className="w-8 h-8">
+                                            <AvatarImage src={friend.avatarUrl} />
+                                            <AvatarFallback>{friend.username[0]}</AvatarFallback>
+                                          </Avatar>
+                                          <span className="text-sm font-medium">{friend.username}</span>
+                                        </div>
+                                        <Button 
+                                          size="sm" 
+                                          variant={isAlreadyMember ? "ghost" : "default"}
+                                          disabled={isAlreadyMember}
+                                          onClick={() => handleAddMember(friend)}
+                                        >
+                                          {isAlreadyMember ? <UserCheck className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                                        </Button>
+                                      </div>
+                                    );
+                                  })
+                                ) : (
+                                  <p className="text-center py-10 text-white/20 italic">No friends found to invite.</p>
+                                )}
+                              </div>
+                            </ScrollArea>
+                          </div>
+                        </DialogContent>
+                     </Dialog>
+                   )}
+                   <Button variant="secondary" className="glass border-white/10" onClick={copyInviteLink}>
+                     <Share2 className="w-4 h-4 mr-2" /> Invite Link
+                   </Button>
+                 </div>
                )}
             </div>
 
@@ -203,14 +302,14 @@ export default function WatchPartyDetailsPage() {
                     onChange={(e) => handleSearch(e.target.value)}
                    />
                    {searchResults.length > 0 && (
-                     <div className="absolute top-full left-0 right-0 mt-2 glass-dark border-white/10 rounded-xl overflow-hidden z-50 max-h-60 overflow-y-auto">
+                     <div className="absolute top-full left-0 right-0 mt-2 glass-dark border-white/10 rounded-xl overflow-hidden z-50 max-h-60 overflow-y-auto shadow-2xl">
                         {searchResults.map(m => (
                           <div 
                             key={m.tmdbId} 
                             onClick={() => handleNominate(m)}
                             className="p-3 hover:bg-white/5 cursor-pointer flex items-center gap-3 transition-colors"
                           >
-                             <img src={m.posterUrl} className="w-8 h-12 object-cover rounded" />
+                             <img src={m.posterUrl} className="w-8 h-12 object-cover rounded shadow-lg" />
                              <span className="text-sm font-medium text-white">{m.title}</span>
                           </div>
                         ))}
@@ -329,13 +428,10 @@ export default function WatchPartyDetailsPage() {
           )}
 
           <div className="glass border-white/5 p-8 rounded-3xl space-y-4 text-center">
-             <Sparkles className="w-12 h-12 text-primary mx-auto opacity-50 mb-4" />
-             <h4 className="text-lg font-headline text-white">Share the Love</h4>
+             <Share2 className="w-12 h-12 text-primary mx-auto opacity-50 mb-4" />
+             <h4 className="text-lg font-headline text-white">Share the Room</h4>
              <p className="text-sm text-white/40">Invite your friends to this room by sharing the URL. Only members can vote!</p>
-             <Button variant="outline" className="w-full glass border-white/10" onClick={() => {
-                navigator.clipboard.writeText(window.location.href);
-                toast({ title: "Link Copied!", description: "Share it with your cinema circle." });
-             }}>
+             <Button variant="outline" className="w-full glass border-white/10" onClick={copyInviteLink}>
                Copy Invite Link
              </Button>
           </div>

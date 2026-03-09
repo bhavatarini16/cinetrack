@@ -57,7 +57,7 @@
     "SceneMemory": {
       "title": "SceneMemory",
       "type": "object",
-      "description": "A specific cinematic moment with descriptive movie context.",
+      "description": "A specific cinematic moment with movie titles and posters for context.",
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
@@ -113,6 +113,14 @@
     "/watchParties/{partyId}": {
       "schema": { "$ref": "#/backend/entities/WatchParty" },
       "description": "Collaborative watch party rooms."
+    },
+    "/watchParties/{partyId}/members/{memberId}": {
+      "schema": { "type": "object" },
+      "description": "Members joined in the watch party."
+    },
+    "/watchParties/{partyId}/nominations/{nomId}": {
+      "schema": { "type": "object" },
+      "description": "Movies nominated for voting in the party."
     }
   }
 }

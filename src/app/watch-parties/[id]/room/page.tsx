@@ -48,6 +48,7 @@ export default function WatchRoomPage() {
   const membersRef = useMemoFirebase(() => collection(firestore, `watchParties/${partyId}/members`), [firestore, partyId]);
   const { data: members } = useCollection<WatchPartyMember>(membersRef);
 
+  // 1. Get Permission and Initialize Stream
   useEffect(() => {
     const getCameraPermission = async () => {
       try {
@@ -58,10 +59,6 @@ export default function WatchRoomPage() {
         
         streamRef.current = stream;
         setHasCameraPermission(true);
-
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
       } catch (error) {
         console.error('Error accessing camera:', error);
         setHasCameraPermission(false);
@@ -83,6 +80,13 @@ export default function WatchRoomPage() {
       }
     };
   }, [user, toast]);
+
+  // 2. Assign Stream to Video Ref (Handled in separate effect to ensure Ref is ready)
+  useEffect(() => {
+    if (hasCameraPermission && streamRef.current && videoRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [hasCameraPermission]);
 
   const toggleMic = () => {
     if (streamRef.current) {
@@ -198,7 +202,7 @@ export default function WatchRoomPage() {
                     ref={videoRef} 
                     className={cn(
                       "w-full h-full object-cover mirror-mode",
-                      !isVideoEnabled && "invisible"
+                      !isVideoEnabled && "opacity-0"
                     )} 
                     autoPlay 
                     muted 

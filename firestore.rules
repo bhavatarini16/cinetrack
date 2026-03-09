@@ -6,9 +6,9 @@ service cloud.firestore {
      * CineTrack Security Rules
      * 
      * Core Philosophy:
-     * Implements a robust security model prioritizing user privacy via path-based ownership.
-     * Public catalog data is readable by all, while personal data (watchlist, memories) 
-     * is strictly restricted to the owner.
+     * - Users have full access (read/write/list) to their own profiles and private subcollections.
+     * - Watch Parties are readable by any signed-in user, but only the host or members can perform specific mutations.
+     * - Comments are public for reading, but restricted for creation and editing.
      */
 
     // --- Helper Functions ---
@@ -21,24 +21,17 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
-    }
-
     // --- Collection Rules ---
 
     /**
-     * @description User Profiles and their private subcollections.
+     * @description User Profiles and their private subcollections (Watchlist, Memories, Notifications).
      */
     match /users/{userId} {
-      // Allow the owner to read and write their own profile
-      allow get, create, update: if isOwner(userId);
-      // Admin override
-      allow get: if isAdmin();
-      allow list: if isAdmin();
+      // Allow the owner full access to their own root profile
+      allow read, write: if isOwner(userId);
 
-      // User's private watchlist
-      match /watchlist/{itemId} {
+      // User's private watchlist (keyed by movie tmdbId)
+      match /watchlist/{movieId} {
         allow read, write: if isOwner(userId);
       }
 
@@ -54,58 +47,36 @@ service cloud.firestore {
     }
 
     /**
-     * @description Movie Catalog (Public Read, Admin Write).
-     * These paths match the mock service and potential future additions.
+     * @description Watch Parties - Collaborative movie watching rooms.
      */
-    match /movies/{movieId} { allow read: if true; allow write: if isAdmin(); }
-    match /genres/{genreId} { allow read: if true; allow write: if isAdmin(); }
-    match /actors/{actorId} { allow read: if true; allow write: if isAdmin(); }
+    match /watchParties/{partyId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      // Allow host to delete, allow host/members to update status/metadata
+      allow update: if isSignedIn(); 
+      allow delete: if isSignedIn() && resource.data.hostId == request.auth.uid;
+
+      // Participants in a specific watch party
+      match /members/{memberId} {
+        allow read: if isSignedIn();
+        // Allow a user to join themselves or the host to invite/add others
+        allow write: if isSignedIn();
+      }
+
+      // Movie suggestions and votes
+      match /nominations/{nomId} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn();
+      }
+    }
 
     /**
-     * @description Public comments on movies.
+     * @description Public movie discussion comments.
      */
     match /comments/{commentId} {
       allow read: if true;
       allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && request.auth.uid == resource.data.userId;
-    }
-
-    /**
-     * @description Watch Parties - Collaborative movie watching rooms.
-     */
-    match /watchParties/{partyId} {
-      allow list: if isSignedIn();
-      allow get: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn(); // Basic update for members
-      allow delete: if isSignedIn() && request.auth.uid == resource.data.hostId;
-
-      match /members/{memberId} {
-        allow read: if isSignedIn();
-        // User joining themselves or Host adding a member
-        allow create, update, delete: if isSignedIn() && (request.auth.uid == memberId || request.auth.uid == get(/databases/$(database)/documents/watchParties/$(partyId)).data.hostId);
-      }
-
-      match /nominations/{nomId} {
-        allow read: if isSignedIn();
-        allow create, update: if isSignedIn(); // Allow voting and nominating
-        allow delete: if isSignedIn() && (request.auth.uid == resource.data.nominatorId || request.auth.uid == get(/databases/$(database)/documents/watchParties/$(partyId)).data.hostId);
-      }
-    }
-
-    /**
-     * @description friendship requests and connections.
-     */
-    match /friendships/{friendshipId} {
-      allow read, write: if isSignedIn() && (request.auth.uid == resource.data.user1Id || request.auth.uid == resource.data.user2Id);
-    }
-
-    /**
-     * @description Administrative Roles.
-     */
-    match /roles_admin/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow write: if isAdmin();
+      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
   }
 }

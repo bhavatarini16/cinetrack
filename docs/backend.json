@@ -1,10 +1,9 @@
-
 {
   "entities": {
     "UserProfile": {
       "title": "UserProfile",
       "type": "object",
-      "description": "Represents a user's profile in the CineTrack application.",
+      "description": "Represents a user's profile and social links.",
       "properties": {
         "id": { "type": "string" },
         "email": { "type": "string", "format": "email" },
@@ -20,7 +19,7 @@
         },
         "friends": {
           "type": "object",
-          "description": "A map of userId to boolean for fast access control checks."
+          "description": "Map of userId to boolean for relationship tracking."
         }
       },
       "required": ["id", "email", "username"]
@@ -28,11 +27,12 @@
     "WatchlistEntry": {
       "title": "WatchlistEntry",
       "type": "object",
-      "description": "A movie entry in a user's watchlist, keyed by tmdbId.",
+      "description": "A movie entry in a user's collection, keyed by tmdbId.",
       "properties": {
+        "id": { "type": "string" },
         "userId": { "type": "string" },
         "movieId": { "type": "string" },
-        "movieData": { "type": "object" },
+        "movieData": { "type": "object", "description": "Full movie details object for relational clarity." },
         "addedDate": { "type": "string", "format": "date-time" },
         "isWatched": { "type": "boolean" },
         "watchDate": { "type": "string", "format": "date-time" },
@@ -49,6 +49,7 @@
       "type": "object",
       "description": "A specific cinematic moment captured by a user.",
       "properties": {
+        "id": { "type": "string" },
         "userId": { "type": "string" },
         "movieId": { "type": "string" },
         "movieTitle": { "type": "string" },
@@ -71,43 +72,18 @@
         "title": { "type": "string" },
         "description": { "type": "string" },
         "scheduledAt": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["draft", "voting", "ready", "finished"] },
+        "status": { "type": "string", "enum": ["voting", "ready", "finished"] },
         "selectedMovieId": { "type": "string" },
         "selectedMovieTitle": { "type": "string" },
         "selectedMoviePoster": { "type": "string" }
       }
     },
-    "WatchPartyMember": {
-      "title": "WatchPartyMember",
-      "type": "object",
-      "description": "A participant in a watch party.",
-      "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "username": { "type": "string" },
-        "avatarUrl": { "type": "string" },
-        "joinedAt": { "type": "string", "format": "date-time" }
-      }
-    },
-    "WatchPartyNomination": {
-      "title": "WatchPartyNomination",
-      "type": "object",
-      "description": "A movie suggestion within a watch party.",
-      "properties": {
-        "id": { "type": "string" },
-        "movieId": { "type": "string" },
-        "movieTitle": { "type": "string" },
-        "posterUrl": { "type": "string" },
-        "nominatorId": { "type": "string" },
-        "nominatorName": { "type": "string" },
-        "votes": { "type": "object" }
-      }
-    },
     "Notification": {
       "title": "Notification",
       "type": "object",
-      "description": "A user alert, e.g., for a watch party invite.",
+      "description": "A user alert for invites and events.",
       "properties": {
+        "id": { "type": "string" },
         "userId": { "type": "string" },
         "type": { "type": "string" },
         "partyId": { "type": "string" },
@@ -123,6 +99,7 @@
       "type": "object",
       "description": "A social comment on a movie.",
       "properties": {
+        "id": { "type": "string" },
         "userId": { "type": "string" },
         "username": { "type": "string" },
         "avatarUrl": { "type": "string" },
@@ -138,35 +115,35 @@
   "firestore": {
     "/users/{userId}": {
       "schema": { "$ref": "#/backend/entities/UserProfile" },
-      "description": "Core user profiles."
+      "description": "User profiles and settings."
     },
     "/users/{userId}/watchlist/{movieId}": {
       "schema": { "$ref": "#/backend/entities/WatchlistEntry" },
-      "description": "User's personal movie tracking queue, keyed by movie tmdbId."
+      "description": "Personal movie tracking queue."
     },
     "/users/{userId}/sceneMemories/{memoryId}": {
       "schema": { "$ref": "#/backend/entities/SceneMemory" },
-      "description": "User's personal cinematic notes and highlights."
+      "description": "Cinematic highlights and notes."
     },
     "/users/{userId}/notifications/{notifId}": {
       "schema": { "$ref": "#/backend/entities/Notification" },
-      "description": "User's activity alerts and invitations."
+      "description": "Activity alerts and invites."
     },
     "/watchParties/{partyId}": {
       "schema": { "$ref": "#/backend/entities/WatchParty" },
-      "description": "Collaborative watch party rooms."
+      "description": "Watch party room metadata."
     },
     "/watchParties/{partyId}/members/{userId}": {
-      "schema": { "$ref": "#/backend/entities/WatchPartyMember" },
-      "description": "Participants in a specific watch party, keyed by userId."
+      "schema": { "type": "object" },
+      "description": "Party participants."
     },
-    "/watchParties/{partyId}/nominations/{nominationId}": {
-      "schema": { "$ref": "#/backend/entities/WatchPartyNomination" },
-      "description": "Movie suggestions and votes within a watch party."
+    "/watchParties/{partyId}/nominations/{nomId}": {
+      "schema": { "type": "object" },
+      "description": "Movie suggestions for the party."
     },
     "/comments/{commentId}": {
       "schema": { "$ref": "#/backend/entities/Comment" },
-      "description": "Global movie discussion comments."
+      "description": "Global movie discussions."
     }
   }
 }

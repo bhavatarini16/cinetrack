@@ -1,18 +1,20 @@
 
 "use client";
 
-import { Movie, WatchlistEntry } from "@/app/lib/types";
+import { Movie, WatchlistEntry, Comment } from "@/app/lib/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Star, Calendar, Clock, User, Plus, Check, Trash2, Edit3 } from "lucide-react";
+import { Star, Calendar, Clock, User, Plus, Check, Trash2, Edit3, MessageSquare, Send } from "lucide-react";
 import Image from "next/image";
 import { useUser, useFirestore, useMemoFirebase, useCollection, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
-import { collection, query, where, doc } from "firebase/firestore";
+import { collection, query, where, doc, orderBy, limit } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Textarea } from "./ui/textarea";
 import { Input } from "./ui/input";
+import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
+import { ScrollArea } from "./ui/scroll-area";
 
 interface MovieDetailsDialogProps {
   movie: Movie | null;
@@ -27,6 +29,7 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
   const [editingNotes, setEditingNotes] = useState(false);
   const [tempNotes, setTempNotes] = useState("");
   const [tempRating, setTempRating] = useState<number>(0);
+  const [commentText, setCommentText] = useState("");
 
   const watchlistRef = useMemoFirebase(() => {
     if (!user || !movie) return null;
@@ -39,11 +42,23 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
   const { data: watchlistEntries } = useCollection<WatchlistEntry>(watchlistRef);
   const entry = watchlistEntries?.[0];
 
+  const commentsRef = useMemoFirebase(() => {
+    if (!movie) return null;
+    return query(
+      collection(firestore, `comments`),
+      where("watchlistEntryId", "==", movie.tmdbId), // Simple mapping to movie for discovery
+      orderBy("commentDate", "desc"),
+      limit(20)
+    );
+  }, [movie, firestore]);
+
+  const { data: comments } = useCollection<Comment>(commentsRef);
+
   if (!movie) return null;
 
   const handleToggleWatchlist = () => {
     if (!user) {
-      toast({ variant: "destructive", title: "Sign in required", description: "You need to be signed in to manage your watchlist." });
+      toast({ variant: "destructive", title: "Sign in required" });
       return;
     }
 
@@ -68,8 +83,9 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
     updateDocumentNonBlocking(doc(firestore, `users/${user.uid}/watchlist`, entry.id), {
       isWatched: !entry.isWatched,
       watchDate: !entry.isWatched ? new Date().toISOString() : null,
+      rewatchCount: entry.isWatched ? (entry.rewatchCount || 0) + 1 : (entry.rewatchCount || 0)
     });
-    toast({ title: entry.isWatched ? "Marked as unwatched" : "Marked as watched" });
+    toast({ title: entry.isWatched ? "Reset to unwatched" : "Marked as experienced" });
   };
 
   const handleSaveNotes = () => {
@@ -79,139 +95,207 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
       personalRating: tempRating,
     });
     setEditingNotes(false);
-    toast({ title: "Review updated" });
+    toast({ title: "Review saved" });
+  };
+
+  const handlePostComment = () => {
+    if (!user || !commentText.trim()) return;
+    addDocumentNonBlocking(collection(firestore, `comments`), {
+      userId: user.uid,
+      username: user.email?.split('@')[0] || "Anonymous",
+      avatarUrl: `https://picsum.photos/seed/${user.uid}/100`,
+      watchlistEntryId: movie.tmdbId,
+      text: commentText,
+      commentDate: new Date().toISOString(),
+    });
+    setCommentText("");
+    toast({ title: "Comment posted" });
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl glass border-white/10 p-0 overflow-hidden text-white">
-        <div className="relative h-64 md:h-96 w-full">
+      <DialogContent className="max-w-5xl glass-dark border-white/10 p-0 overflow-hidden text-white rounded-3xl">
+        <div className="relative h-72 md:h-[450px] w-full">
           <Image
             src={movie.backdropUrl || movie.posterUrl}
             alt={movie.title}
             fill
-            className="object-cover opacity-40"
+            className="object-cover opacity-30"
+            priority
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
-          <div className="absolute bottom-6 left-6 right-6 flex flex-col md:flex-row items-end gap-6">
-            <div className="relative w-32 md:w-48 aspect-[2/3] rounded-lg overflow-hidden shadow-2xl border border-white/10 shrink-0">
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
+          <div className="absolute bottom-10 left-8 right-8 flex flex-col md:flex-row items-end gap-10">
+            <div className="relative w-40 md:w-56 aspect-[2/3] rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.8)] border border-white/10 shrink-0 transform hover:scale-105 transition-transform">
               <Image src={movie.posterUrl} alt={movie.title} fill className="object-cover" />
             </div>
-            <div className="flex-1 space-y-2">
+            <div className="flex-1 space-y-4">
               <div className="flex flex-wrap gap-2">
                 {movie.genres.map((g) => (
-                  <Badge key={g} variant="secondary" className="bg-white/10 border-white/5">{g}</Badge>
+                  <Badge key={g} variant="secondary" className="bg-primary/20 text-primary border-none font-bold uppercase tracking-wider text-[10px]">{g}</Badge>
                 ))}
               </div>
-              <DialogTitle className="text-3xl md:text-5xl font-headline font-bold leading-tight">{movie.title}</DialogTitle>
-              <div className="flex flex-wrap items-center gap-4 text-white/60 text-sm">
-                <span className="flex items-center gap-1"><Calendar className="w-4 h-4" /> {movie.releaseDate}</span>
-                {movie.runtime && <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> {movie.runtime} min</span>}
-                <span className="flex items-center gap-1 text-primary"><Star className="w-4 h-4 fill-primary" /> {movie.tmdbRating}</span>
+              <DialogTitle className="text-4xl md:text-7xl font-headline font-bold leading-[0.9] tracking-tighter uppercase">{movie.title}</DialogTitle>
+              <div className="flex flex-wrap items-center gap-6 text-white/50 text-sm font-medium">
+                <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-primary" /> {movie.releaseDate}</span>
+                {movie.runtime && <span className="flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> {movie.runtime}m</span>}
+                <span className="flex items-center gap-2 text-primary font-bold"><Star className="w-4 h-4 fill-primary" /> {movie.tmdbRating} TMDB</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-3 gap-8 overflow-y-auto max-h-[50vh]">
-          <div className="md:col-span-2 space-y-6">
-            <div className="space-y-2">
-              <h4 className="text-lg font-headline font-bold text-primary flex items-center gap-2">
-                <Edit3 className="w-4 h-4" /> OVERVIEW
+        <div className="p-8 grid grid-cols-1 lg:grid-cols-12 gap-12 overflow-y-auto max-h-[55vh]">
+          <div className="lg:col-span-8 space-y-10">
+            <div className="space-y-4">
+              <h4 className="text-[10px] font-bold text-primary flex items-center gap-2 tracking-[0.4em] uppercase">
+                <Edit3 className="w-4 h-4" /> The Narrative
               </h4>
-              <p className="text-white/70 leading-relaxed text-lg">{movie.overview}</p>
+              <p className="text-white/70 leading-relaxed text-xl font-light">{movie.overview}</p>
             </div>
 
+            {/* Cast & Crew Mini Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+               <div className="space-y-1">
+                 <p className="text-[10px] uppercase tracking-widest text-white/30 font-bold">Director</p>
+                 <p className="text-sm font-semibold text-white">{movie.director}</p>
+               </div>
+               <div className="col-span-3 space-y-1">
+                 <p className="text-[10px] uppercase tracking-widest text-white/30 font-bold">Principal Cast</p>
+                 <p className="text-sm font-semibold text-white">{movie.cast?.join(", ")}</p>
+               </div>
+            </div>
+
+            {/* User Review Section */}
             {entry && (
-              <div className="space-y-4 pt-4 border-t border-white/5">
+              <div className="space-y-6 pt-10 border-t border-white/5">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-lg font-headline font-bold text-primary">YOUR REVIEW</h4>
-                  {!editingNotes ? (
-                    <Button variant="ghost" size="sm" onClick={() => {
+                  <h4 className="text-[10px] font-bold text-primary tracking-[0.4em] uppercase">Your Perspective</h4>
+                  {!editingNotes && (
+                    <Button variant="outline" size="sm" className="glass border-white/10 rounded-xl" onClick={() => {
                       setTempNotes(entry.notes || "");
                       setTempRating(entry.personalRating || 0);
                       setEditingNotes(true);
                     }}>
-                      Edit Review
+                      Update Experience
                     </Button>
-                  ) : (
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => setEditingNotes(false)}>Cancel</Button>
-                      <Button size="sm" onClick={handleSaveNotes}>Save</Button>
-                    </div>
                   )}
                 </div>
 
                 {editingNotes ? (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-sm text-white/50">Rating (1-10)</label>
+                  <Card className="glass border-primary/20 p-6 space-y-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-white/50 uppercase tracking-widest">Personal Rating</label>
+                        <span className="text-primary font-bold text-lg">{tempRating}/10</span>
+                      </div>
                       <Input 
-                        type="number" 
-                        min="0" max="10" 
+                        type="range" 
+                        min="0" max="10" step="0.5"
                         value={tempRating} 
                         onChange={(e) => setTempRating(Number(e.target.value))}
-                        className="bg-white/5 border-white/10 max-w-[100px]"
+                        className="bg-transparent h-2"
                       />
                     </div>
-                    <Textarea 
-                      value={tempNotes} 
-                      onChange={(e) => setTempNotes(e.target.value)}
-                      placeholder="Write your thoughts..."
-                      className="bg-white/5 border-white/10 min-h-[100px]"
-                    />
-                  </div>
+                    <div className="space-y-2">
+                       <label className="text-xs font-bold text-white/50 uppercase tracking-widest">Field Notes</label>
+                      <Textarea 
+                        value={tempNotes} 
+                        onChange={(e) => setTempNotes(e.target.value)}
+                        placeholder="What did you think of the cinematography, score, and pacing?"
+                        className="bg-white/5 border-white/10 min-h-[140px] rounded-xl focus:ring-primary"
+                      />
+                    </div>
+                    <div className="flex gap-3">
+                      <Button className="flex-1 bg-primary hover:bg-primary/80 h-12" onClick={handleSaveNotes}>Commit to Memory</Button>
+                      <Button variant="ghost" className="h-12" onClick={() => setEditingNotes(false)}>Discard</Button>
+                    </div>
+                  </Card>
                 ) : (
-                  <div className="bg-white/5 rounded-xl p-4 space-y-2">
+                  <div className="bg-white/5 rounded-2xl p-6 border border-white/5 space-y-4">
                     {entry.personalRating ? (
-                      <div className="flex items-center gap-1 text-yellow-500 font-bold">
-                        <Star className="w-4 h-4 fill-yellow-500" /> {entry.personalRating}/10
+                      <div className="flex items-center gap-2 text-yellow-500 font-bold text-2xl">
+                        <Star className="w-6 h-6 fill-yellow-500" /> {entry.personalRating}/10
                       </div>
                     ) : (
-                      <p className="text-white/30 italic text-sm">No rating yet.</p>
+                      <p className="text-white/20 italic text-sm">No evaluation recorded yet.</p>
                     )}
-                    <p className="text-white/80">{entry.notes || "No notes added."}</p>
+                    <p className="text-white/80 text-lg leading-relaxed italic">"{entry.notes || "No notes added yet. Use the button above to record your thoughts."}"</p>
+                    {entry.watchDate && (
+                      <p className="text-[10px] text-white/30 uppercase tracking-widest pt-4">Experienced on {new Date(entry.watchDate).toLocaleDateString()}</p>
+                    )}
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          <div className="space-y-6">
-            <div className="space-y-3">
+          <div className="lg:col-span-4 space-y-10">
+            {/* Action Panel */}
+            <div className="space-y-4">
               <Button 
                 onClick={handleToggleWatchlist}
                 variant={entry ? "destructive" : "default"} 
-                className="w-full h-12 text-lg font-headline shadow-lg"
+                className="w-full h-16 text-xl font-headline shadow-2xl rounded-2xl"
               >
-                {entry ? <Trash2 className="w-5 h-5 mr-2" /> : <Plus className="w-5 h-5 mr-2" />}
-                {entry ? "Remove" : "Add to Watchlist"}
+                {entry ? <Trash2 className="w-6 h-6 mr-3" /> : <Plus className="w-6 h-6 mr-3" />}
+                {entry ? "Purge" : "Track Film"}
               </Button>
               {entry && (
                 <Button 
                   variant="secondary" 
-                  className="w-full h-12 glass border-white/10"
+                  className="w-full h-16 glass border-white/10 rounded-2xl text-lg font-headline"
                   onClick={handleMarkAsWatched}
                 >
-                  {entry.isWatched ? <Check className="w-5 h-5 mr-2 text-green-500" /> : <Clock className="w-5 h-5 mr-2" />}
-                  {entry.isWatched ? "Watched" : "Mark as Watched"}
+                  {entry.isWatched ? <Check className="w-6 h-6 mr-3 text-green-500" /> : <Clock className="w-6 h-6 mr-3" />}
+                  {entry.isWatched ? `Watched (${entry.rewatchCount || 1}x)` : "Mark Experienced"}
                 </Button>
               )}
             </div>
 
-            <div className="p-4 rounded-xl bg-white/5 border border-white/5 space-y-4">
-              {movie.director && (
-                <div>
-                  <h5 className="text-[10px] uppercase tracking-widest text-white/40 font-bold mb-1">Director</h5>
-                  <p className="text-sm font-medium">{movie.director}</p>
-                </div>
-              )}
-              {movie.cast && (
-                <div>
-                  <h5 className="text-[10px] uppercase tracking-widest text-white/40 font-bold mb-1">Cast</h5>
-                  <p className="text-sm font-medium">{movie.cast.slice(0, 5).join(", ")}</p>
-                </div>
-              )}
+            {/* Discussion / Social */}
+            <div className="space-y-6 pt-10 border-t border-white/5">
+               <h4 className="text-[10px] font-bold text-white/40 tracking-[0.4em] uppercase flex items-center gap-2">
+                <MessageSquare className="w-4 h-4" /> Social Pulse
+               </h4>
+               
+               <ScrollArea className="h-64 pr-4">
+                 <div className="space-y-6">
+                   {comments?.map(comment => (
+                     <div key={comment.id} className="flex gap-3 group">
+                       <Avatar className="w-8 h-8 shrink-0">
+                         <AvatarImage src={comment.avatarUrl} />
+                         <AvatarFallback>{comment.username[0]}</AvatarFallback>
+                       </Avatar>
+                       <div className="space-y-1">
+                         <div className="flex items-center gap-2">
+                           <span className="text-xs font-bold text-white">{comment.username}</span>
+                           <span className="text-[10px] text-white/30">{new Date(comment.commentDate).toLocaleDateString()}</span>
+                         </div>
+                         <p className="text-sm text-white/70">{comment.text}</p>
+                       </div>
+                     </div>
+                   ))}
+                   {comments?.length === 0 && <p className="text-center py-10 text-white/20 italic text-sm">Silence in the theater. Be the first to speak.</p>}
+                 </div>
+               </ScrollArea>
+
+               <div className="relative pt-4">
+                 <Input 
+                   placeholder="Share your insight..." 
+                   className="bg-white/5 border-white/10 pr-12 h-12 rounded-xl"
+                   value={commentText}
+                   onChange={(e) => setCommentText(e.target.value)}
+                   onKeyDown={(e) => e.key === 'Enter' && handlePostComment()}
+                 />
+                 <Button 
+                   size="icon" 
+                   className="absolute right-1 top-[1.25rem] h-10 w-10 bg-primary hover:bg-primary/80 rounded-lg"
+                   onClick={handlePostComment}
+                   disabled={!commentText.trim()}
+                 >
+                   <Send className="w-4 h-4" />
+                 </Button>
+               </div>
             </div>
           </div>
         </div>

@@ -18,7 +18,7 @@ export interface WatchlistEntry {
   id: string;
   userId: string;
   movieId: string;
-  movieData: Movie; // Denormalized for easy listing
+  movieData: Movie;
   addedDate: string;
   isWatched: boolean;
   watchDate?: string;
@@ -40,4 +40,15 @@ export interface UserProfile {
   dateJoined: string;
   personality?: CinemaPersonality;
   favoriteGenreIds?: string[];
+  friends?: Record<string, boolean>; // Denormalized friends map for auth
+}
+
+export interface Comment {
+  id: string;
+  userId: string;
+  username: string;
+  avatarUrl: string;
+  watchlistEntryId: string;
+  text: string;
+  commentDate: string;
 }

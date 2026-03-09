@@ -28,7 +28,7 @@
     "WatchlistEntry": {
       "title": "WatchlistEntry",
       "type": "object",
-      "description": "A rich movie entry in a user's collection, containing full movie metadata.",
+      "description": "A rich movie entry containing full metadata for relational storage.",
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
@@ -42,10 +42,7 @@
             "releaseDate": { "type": "string" },
             "overview": { "type": "string" },
             "posterUrl": { "type": "string" },
-            "backdropUrl": { "type": "string" },
-            "runtime": { "type": "number" },
-            "cast": { "type": "array", "items": { "type": "string" } },
-            "director": { "type": "string" }
+            "backdropUrl": { "type": "string" }
           }
         },
         "addedDate": { "type": "string", "format": "date-time" },
@@ -62,7 +59,7 @@
     "SceneMemory": {
       "title": "SceneMemory",
       "type": "object",
-      "description": "A specific cinematic moment captured by a user with descriptive metadata.",
+      "description": "A specific cinematic moment with movie context.",
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
@@ -79,7 +76,7 @@
     "WatchParty": {
       "title": "WatchParty",
       "type": "object",
-      "description": "A collaborative movie watching room with host and selected movie details.",
+      "description": "A collaborative movie watching room.",
       "properties": {
         "id": { "type": "string" },
         "hostId": { "type": "string" },
@@ -109,20 +106,6 @@
         "status": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       }
-    },
-    "Comment": {
-      "title": "Comment",
-      "type": "object",
-      "description": "A social comment with user and movie context.",
-      "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "username": { "type": "string" },
-        "avatarUrl": { "type": "string" },
-        "watchlistEntryId": { "type": "string" },
-        "text": { "type": "string" },
-        "commentDate": { "type": "string", "format": "date-time" }
-      }
     }
   },
   "auth": {
@@ -135,7 +118,7 @@
     },
     "/users/{userId}/watchlist/{movieId}": {
       "schema": { "$ref": "#/backend/entities/WatchlistEntry" },
-      "description": "Personal movie tracking queue with full metadata."
+      "description": "Personal movie tracking queue with original data."
     },
     "/users/{userId}/sceneMemories/{memoryId}": {
       "schema": { "$ref": "#/backend/entities/SceneMemory" },
@@ -155,11 +138,11 @@
     },
     "/watchParties/{partyId}/nominations/{nomId}": {
       "schema": { "type": "object" },
-      "description": "Movie suggestions for the party including poster and title."
+      "description": "Movie suggestions for the party."
     },
     "/comments/{commentId}": {
-      "schema": { "$ref": "#/backend/entities/Comment" },
-      "description": "Global movie discussions with original user data."
+      "schema": { "type": "object" },
+      "description": "Global movie discussions."
     }
   }
 }

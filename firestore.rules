@@ -6,9 +6,8 @@ service cloud.firestore {
      * CineTrack Security Rules
      * 
      * Core Philosophy:
-     * - Users have full recursive access to their own profile and all subcollections.
-     * - Watch Parties are readable by any signed-in user.
-     * - Comments are public for reading, restricted for creation/editing.
+     * - Users have full access to their own data tree.
+     * - Watch Parties and Comments are collaborative.
      */
 
     // --- Helper Functions ---
@@ -24,13 +23,19 @@ service cloud.firestore {
     // --- Collection Rules ---
 
     /**
-     * @description User Profiles and all nested private data.
-     * Recursively allows the owner to read and write any document in their tree.
+     * @description User Profiles and nested personal data (Watchlist, SceneMemories, etc.)
      */
     match /users/{userId} {
       allow read, write: if isOwner(userId);
 
-      match /{allSubcollections=**} {
+      // Explicitly allow access to subcollections for listing operations
+      match /watchlist/{movieId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /sceneMemories/{memoryId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /notifications/{notifId} {
         allow read, write: if isOwner(userId);
       }
     }
@@ -39,22 +44,16 @@ service cloud.firestore {
      * @description Watch Parties - Collaborative movie watching rooms.
      */
     match /watchParties/{partyId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      // Allow host/members to update status/metadata/votes
+      allow read, create: if isSignedIn();
       allow update: if isSignedIn(); 
       allow delete: if isSignedIn() && resource.data.hostId == request.auth.uid;
 
-      // Participants in a specific watch party
       match /members/{memberId} {
-        allow read: if isSignedIn();
-        allow write: if isSignedIn();
+        allow read, write: if isSignedIn();
       }
 
-      // Movie suggestions and votes
       match /nominations/{nomId} {
-        allow read: if isSignedIn();
-        allow write: if isSignedIn();
+        allow read, write: if isSignedIn();
       }
     }
 

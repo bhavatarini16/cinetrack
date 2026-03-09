@@ -4,7 +4,17 @@ import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebas
 import { collection, query, orderBy } from 'firebase/firestore';
 import MovieCard from '@/components/movie-card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { List, CheckCircle2, Clock, Loader2, PlayCircle, Heart, Bell, Star, Sparkles } from 'lucide-react';
+import { 
+  List, 
+  CheckCircle2, 
+  Clock, 
+  Loader2, 
+  PlayCircle, 
+  Heart, 
+  Bell, 
+  Star, 
+  Sparkles 
+} from 'lucide-react';
 import { WatchlistEntry } from '../lib/types';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -66,7 +76,7 @@ export default function WatchlistPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-        {/* Main Watchlist Section */}
+        {/* Main Watchlist Tabs Section */}
         <div className="lg:col-span-8">
           <Tabs defaultValue="watchlist" className="space-y-8">
             <TabsList className="glass border-white/5 p-1 h-14 w-full md:w-auto">
@@ -165,7 +175,7 @@ export default function WatchlistPage() {
                           </div>
                           <div className="mt-3 flex gap-2">
                              {entry.isWatched && <Badge variant="outline" className="text-[8px] border-green-500/30 text-green-500 py-0 px-2">Watched</Badge>}
-                             <Badge variant="outline" className="text-[8px] border-white/10 text-white/40 py-0 px-2 uppercase">{entry.movieData.genres[0]}</Badge>
+                             <Badge variant="outline" className="text-[8px] border-white/10 text-white/40 py-0 px-2 uppercase">{entry.movieData.genres[0] || 'Film'}</Badge>
                           </div>
                         </div>
                       </div>

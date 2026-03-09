@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo } from 'react';
@@ -7,9 +6,10 @@ import { collection, query, orderBy } from 'firebase/firestore';
 import { WatchlistEntry } from '../lib/types';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line
+  PieChart, Pie, Cell
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { BarChart3, Film, Star, TrendingUp, Calendar, Loader2, Award, UserCheck } from 'lucide-react';
 
 const COLORS = ['#ff4d4d', '#cc3d3d', '#992d2d', '#661e1e', '#330f0f', '#ff8080', '#ffb3b3'];
@@ -18,46 +18,74 @@ export default function DashboardPage() {
   const { user } = useUser();
   const firestore = useFirestore();
 
-  const watchlistRef = useMemoFirebase(() => {
-    if (!user) return null;
+  // Memoize the query to fetch the user's entire watchlist
+  const watchlistQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
     return query(collection(firestore, `users/${user.uid}/watchlist`), orderBy("addedDate", "desc"));
   }, [user, firestore]);
 
-  const { data: entries, isLoading } = useCollection<WatchlistEntry>(watchlistRef);
+  const { data: entries, isLoading } = useCollection<WatchlistEntry>(watchlistQuery);
 
+  // Process data for the dashboard metrics
   const stats = useMemo(() => {
     if (!entries) return null;
 
     const watched = entries.filter(e => e.isWatched);
     const inWatchlist = entries.filter(e => !e.isWatched);
     
-    // Ratings
+    // Calculate Average Rating
     const ratedMovies = watched.filter(e => e.personalRating && e.personalRating > 0);
     const avgRating = ratedMovies.length > 0 
       ? ratedMovies.reduce((acc, curr) => acc + (curr.personalRating || 0), 0) / ratedMovies.length 
       : 0;
 
-    // Genres & Actors & Directors
+    // Aggregate Genres, Actors, and Directors
     const genreCount: Record<string, number> = {};
     const actorCount: Record<string, number> = {};
     const directorCount: Record<string, number> = {};
 
     watched.forEach(m => {
-      m.movieData.genres.forEach(g => genreCount[g] = (genreCount[g] || 0) + 1);
-      m.movieData.cast?.forEach(a => actorCount[a] = (actorCount[a] || 0) + 1);
-      if (m.movieData.director) directorCount[m.movieData.director] = (directorCount[m.movieData.director] || 0) + 1;
+      // Genres
+      m.movieData.genres?.forEach(g => {
+        genreCount[g] = (genreCount[g] || 0) + 1;
+      });
+      // Cast/Actors
+      m.movieData.cast?.forEach(a => {
+        actorCount[a] = (actorCount[a] || 0) + 1;
+      });
+      // Director
+      if (m.movieData.director) {
+        directorCount[m.movieData.director] = (directorCount[m.movieData.director] || 0) + 1;
+      }
     });
     
+    // Sort genres for distribution chart
     const genreData = Object.entries(genreCount)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
 
-    // Monthly activity (Simulated based on watchDates if available, else random for visual)
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const activityData = months.map(m => ({ month: m, count: Math.floor(Math.random() * 8) }));
+    // Monthly Activity Processing (Grouping by watchDate)
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthlyActivityMap: Record<string, number> = {};
+    
+    // Initialize current year months
+    monthNames.forEach(m => monthlyActivityMap[m] = 0);
+
+    watched.forEach(e => {
+      if (e.watchDate) {
+        const date = new Date(e.watchDate);
+        const monthLabel = monthNames[date.getMonth()];
+        monthlyActivityMap[monthLabel] = (monthlyActivityMap[monthLabel] || 0) + 1;
+      }
+    });
+
+    const activityData = monthNames.map(m => ({
+      month: m,
+      count: monthlyActivityMap[m]
+    }));
     
     return {
-      total: watched.length,
+      totalWatched: watched.length,
       watchlistCount: inWatchlist.length,
       avgRating: avgRating.toFixed(1),
       genreData: genreData.slice(0, 7),
@@ -75,13 +103,25 @@ export default function DashboardPage() {
     );
   }
 
-  if (!user || !stats) {
+  if (!user) {
     return (
       <div className="pt-24 min-h-screen flex items-center justify-center px-4">
         <div className="text-center space-y-4 max-w-sm">
           <BarChart3 className="w-16 h-16 text-white/10 mx-auto" />
-          <h2 className="text-2xl font-headline text-white">No data to analyze</h2>
-          <p className="text-white/40">Start tracking movies to unlock deep insights into your cinematic habits.</p>
+          <h2 className="text-2xl font-headline text-white">Analytics Locked</h2>
+          <p className="text-white/40">Please sign in to view your cinematic insights and taste analytics.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!stats || entries?.length === 0) {
+    return (
+      <div className="pt-24 min-h-screen flex items-center justify-center px-4">
+        <div className="text-center space-y-6 max-w-md glass border-white/5 p-12 rounded-3xl">
+          <TrendingUp className="w-16 h-16 text-primary/50 mx-auto" />
+          <h2 className="text-2xl font-headline text-white uppercase tracking-tighter">Engine Standby</h2>
+          <p className="text-white/40">Your data repository is empty. Start tracking and rating movies to generate your taste profile.</p>
         </div>
       </div>
     );
@@ -91,12 +131,13 @@ export default function DashboardPage() {
     <div className="pt-24 min-h-screen max-w-7xl mx-auto px-4 md:px-8 pb-20 space-y-12">
       <div className="space-y-2 animate-fade-in">
         <h1 className="text-5xl font-headline font-bold text-white tracking-tighter uppercase">ANALYTICS <span className="text-gradient">ENGINE</span></h1>
-        <p className="text-white/50 text-lg">Deciphering your cinematic DNA through real-time data.</p>
+        <p className="text-white/50 text-lg">Deciphering your cinematic DNA through real-time Firestore data.</p>
       </div>
 
+      {/* High Level Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: 'Total Watched', value: stats.total, icon: Film, color: 'text-primary' },
+          { label: 'Total Watched', value: stats.totalWatched, icon: Film, color: 'text-primary' },
           { label: 'Wishlist Queue', value: stats.watchlistCount, icon: Calendar, color: 'text-blue-400' },
           { label: 'Mean Rating', value: stats.avgRating, icon: Star, color: 'text-yellow-500' },
           { label: 'Diverse Genres', value: stats.genreData.length, icon: TrendingUp, color: 'text-purple-500' },
@@ -118,7 +159,9 @@ export default function DashboardPage() {
         ))}
       </div>
 
+      {/* Visual Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Genre Distribution (Pie Chart) */}
         <Card className="glass border-white/5 lg:col-span-1">
           <CardHeader>
             <CardTitle className="text-white font-headline text-xl flex items-center gap-2 uppercase tracking-widest">
@@ -156,12 +199,13 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
+        {/* Monthly Activity (Bar Chart) */}
         <Card className="glass border-white/5 lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-white font-headline text-xl flex items-center gap-2 uppercase tracking-widest">
               <Calendar className="w-5 h-5 text-primary" /> Consumption Velocity
             </CardTitle>
-            <CardDescription className="text-white/40">Watch activity trends over current solar cycle.</CardDescription>
+            <CardDescription className="text-white/40">Monthly watch activity trends.</CardDescription>
           </CardHeader>
           <CardContent className="h-[350px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -179,19 +223,20 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
+        {/* Most Watched Actors and Directors */}
         <Card className="glass border-white/5 lg:col-span-3">
           <CardHeader>
             <CardTitle className="text-white font-headline text-xl flex items-center gap-2 uppercase tracking-widest">
               <UserCheck className="w-5 h-5 text-primary" /> Frequent Collaborators
             </CardTitle>
-            <CardDescription className="text-white/40">Most frequent actors and directors in your history.</CardDescription>
+            <CardDescription className="text-white/40">The artists most present in your cinematic history.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
              <div className="space-y-4">
                <h4 className="text-[10px] uppercase tracking-[0.3em] font-bold text-primary">Top Actors</h4>
                <div className="space-y-3">
                  {stats.topActors.map(([name, count]) => (
-                   <div key={name} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
+                   <div key={name} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-colors">
                      <span className="text-white font-medium">{name}</span>
                      <Badge className="bg-primary/20 text-primary border-none">{count} Films</Badge>
                    </div>
@@ -203,7 +248,7 @@ export default function DashboardPage() {
                <h4 className="text-[10px] uppercase tracking-[0.3em] font-bold text-primary">Top Directors</h4>
                <div className="space-y-3">
                  {stats.topDirectors.map(([name, count]) => (
-                   <div key={name} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
+                   <div key={name} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-colors">
                      <span className="text-white font-medium">{name}</span>
                      <Badge className="bg-blue-500/20 text-blue-400 border-none">{count} Projects</Badge>
                    </div>

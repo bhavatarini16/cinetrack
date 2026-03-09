@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Star, Calendar, Clock, Plus, Check, Trash2, Edit3, MessageSquare, Send, Lock, Bell, BellOff, Video, Quote, StickyNote } from "lucide-react";
 import Image from "next/image";
-import { useUser, useFirestore, useMemoFirebase, useCollection, addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
+import { useUser, useFirestore, useMemoFirebase, useDoc, useCollection, addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
 import { collection, query, where, doc, orderBy, limit } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useMemo } from "react";
@@ -41,16 +41,13 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
   const [memoryQuote, setMemoryQuote] = useState("");
   const [memoryNote, setMemoryNote] = useState("");
 
-  const watchlistRef = useMemoFirebase(() => {
-    if (!user?.uid || !movie?.tmdbId || !firestore || !isOpen) return null;
-    return query(
-      collection(firestore, `users/${user.uid}/watchlist`),
-      where("movieId", "==", movie.tmdbId)
-    );
-  }, [user?.uid, movie?.tmdbId, firestore, isOpen]);
+  // Using useDoc directly instead of a query for the watchlist entry is more efficient
+  const watchlistDocRef = useMemoFirebase(() => {
+    if (!user?.uid || !movie?.tmdbId || !firestore) return null;
+    return doc(firestore, `users/${user.uid}/watchlist/${movie.tmdbId}`);
+  }, [user?.uid, movie?.tmdbId, firestore]);
 
-  const { data: watchlistEntries } = useCollection<WatchlistEntry>(watchlistRef);
-  const entry = watchlistEntries?.[0];
+  const { data: entry } = useDoc<WatchlistEntry>(watchlistDocRef);
 
   const commentsRef = useMemoFirebase(() => {
     if (!isOpen || !movie?.tmdbId || !user?.uid || !firestore) return null;
@@ -100,6 +97,7 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
         isWatched: false,
         rewatchCount: 0,
         remindMe: isUpcoming,
+        isFavorite: false
       }, { merge: true });
       toast({ 
         title: isUpcoming ? "Reminder Set" : "Added to watchlist",

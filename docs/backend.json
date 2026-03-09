@@ -71,6 +71,21 @@
       },
       "required": ["userId", "movieId", "timestamp", "movieTitle"]
     },
+    "Comment": {
+      "title": "Comment",
+      "type": "object",
+      "description": "A user's comment on a movie, including their descriptive username.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "watchlistEntryId": { "type": "string" },
+        "text": { "type": "string" },
+        "commentDate": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "username", "text", "commentDate"]
+    },
     "WatchParty": {
       "title": "WatchParty",
       "type": "object",
@@ -109,6 +124,10 @@
     "/users/{userId}/notifications/{notifId}": {
       "schema": { "type": "object" },
       "description": "Personal alerts and party invites."
+    },
+    "/comments/{commentId}": {
+       "schema": { "$ref": "#/backend/entities/Comment" },
+      "description": "Public movie discussions."
     },
     "/watchParties/{partyId}": {
       "schema": { "$ref": "#/backend/entities/WatchParty" },

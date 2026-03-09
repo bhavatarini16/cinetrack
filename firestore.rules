@@ -14,7 +14,7 @@ service cloud.firestore {
 
     // --- Rules ---
 
-    // Users have full authority over their own profile and all its sub-data recursively
+    // Users have full authority over their own profile and all its sub-collections
     match /users/{userId} {
       allow read, write: if isOwner(userId);
 
@@ -23,21 +23,21 @@ service cloud.firestore {
       }
     }
 
-    // Watch Parties are collaborative spaces for signed-in users
-    match /watchParties/{partyId} {
-      allow read, create, update: if isSignedIn();
-      allow delete: if isSignedIn() && resource.data.hostId == request.auth.uid;
-
-      match /{allPaths=**} {
-        allow read, write: if isSignedIn();
-      }
-    }
-
     // Comments are public to read, restricted to signed-in authors for writing
     match /comments/{commentId} {
       allow read: if true;
       allow create: if isSignedIn();
       allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // Watch Parties are collaborative spaces for signed-in users
+    match /watchParties/{partyId} {
+      allow read, create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (resource == null || resource.data.hostId == request.auth.uid);
+
+      match /{allPaths=**} {
+        allow read, write: if isSignedIn();
+      }
     }
   }
 }

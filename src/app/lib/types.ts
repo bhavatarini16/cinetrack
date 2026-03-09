@@ -26,6 +26,7 @@ export interface WatchlistEntry {
   notes?: string;
   rewatchCount: number;
   isFavorite?: boolean;
+  remindMe?: boolean;
 }
 
 export interface CinemaPersonality {

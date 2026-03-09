@@ -5,12 +5,12 @@ import { Movie, WatchlistEntry, Comment } from "@/app/lib/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Star, Calendar, Clock, User, Plus, Check, Trash2, Edit3, MessageSquare, Send, Lock } from "lucide-react";
+import { Star, Calendar, Clock, User, Plus, Check, Trash2, Edit3, MessageSquare, Send, Lock, Bell, BellOff } from "lucide-react";
 import Image from "next/image";
 import { useUser, useFirestore, useMemoFirebase, useCollection, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
 import { collection, query, where, doc, orderBy, limit } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Textarea } from "./ui/textarea";
 import { Input } from "./ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
@@ -43,18 +43,20 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
   const entry = watchlistEntries?.[0];
 
   const commentsRef = useMemoFirebase(() => {
-    // CRITICAL: Only attempt to fetch comments if the dialog is OPEN, the movie is valid, and a user is signed in
     if (!isOpen || !movie?.tmdbId || !user?.uid || !firestore) return null;
     return query(
       collection(firestore, `comments`),
       where("watchlistEntryId", "==", movie.tmdbId),
-      // Temporarily removing orderBy to avoid composite index requirements during development
-      // orderBy("commentDate", "desc"),
       limit(20)
     );
   }, [isOpen, movie?.tmdbId, user?.uid, firestore]);
 
   const { data: comments, isLoading: isCommentsLoading } = useCollection<Comment>(commentsRef);
+
+  const isUpcoming = useMemo(() => {
+    if (!movie?.releaseDate) return false;
+    return new Date(movie.releaseDate) > new Date();
+  }, [movie?.releaseDate]);
 
   if (!movie) return null;
 
@@ -75,9 +77,25 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
         addedDate: new Date().toISOString(),
         isWatched: false,
         rewatchCount: 0,
+        remindMe: isUpcoming,
       });
-      toast({ title: "Added to watchlist" });
+      toast({ 
+        title: isUpcoming ? "Reminder Set" : "Added to watchlist",
+        description: isUpcoming ? `We'll notify you when "${movie.title}" releases.` : ""
+      });
     }
+  };
+
+  const handleToggleReminder = () => {
+    if (!user || !entry) return;
+    const nextValue = !entry.remindMe;
+    updateDocumentNonBlocking(doc(firestore, `users/${user.uid}/watchlist`, entry.id), {
+      remindMe: nextValue
+    });
+    toast({ 
+      title: nextValue ? "Reminder Activated" : "Reminder Silenced",
+      description: nextValue ? `Pulse set for ${movie.releaseDate}` : "You won't receive release alerts for this film."
+    });
   };
 
   const handleMarkAsWatched = () => {
@@ -85,7 +103,8 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
     updateDocumentNonBlocking(doc(firestore, `users/${user.uid}/watchlist`, entry.id), {
       isWatched: !entry.isWatched,
       watchDate: !entry.isWatched ? new Date().toISOString() : null,
-      rewatchCount: entry.isWatched ? (entry.rewatchCount || 0) + 1 : (entry.rewatchCount || 0)
+      rewatchCount: entry.isWatched ? (entry.rewatchCount || 0) + 1 : (entry.rewatchCount || 0),
+      remindMe: false // Disable reminder if watched
     });
     toast({ title: entry.isWatched ? "Reset to unwatched" : "Marked as experienced" });
   };
@@ -138,7 +157,10 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
               </div>
               <DialogTitle className="text-4xl md:text-7xl font-headline font-bold leading-[0.9] tracking-tighter uppercase">{movie.title}</DialogTitle>
               <div className="flex flex-wrap items-center gap-6 text-white/50 text-sm font-medium">
-                <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-primary" /> {movie.releaseDate}</span>
+                <span className="flex items-center gap-2">
+                  <Calendar className={cn("w-4 h-4", isUpcoming ? "text-blue-400" : "text-primary")} /> 
+                  {movie.releaseDate} {isUpcoming && <Badge variant="outline" className="ml-2 border-blue-400/30 text-blue-400 text-[10px]">Upcoming</Badge>}
+                </span>
                 {movie.runtime && <span className="flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> {movie.runtime}m</span>}
                 <span className="flex items-center gap-2 text-primary font-bold"><Star className="w-4 h-4 fill-primary" /> {movie.tmdbRating} TMDB</span>
               </div>
@@ -237,17 +259,33 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
                 className="w-full h-16 text-xl font-headline shadow-2xl rounded-2xl"
               >
                 {entry ? <Trash2 className="w-6 h-6 mr-3" /> : <Plus className="w-6 h-6 mr-3" />}
-                {entry ? "Purge" : "Track Film"}
+                {entry ? "Purge" : (isUpcoming ? "Set Reminder" : "Track Film")}
               </Button>
               {entry && (
-                <Button 
-                  variant="secondary" 
-                  className="w-full h-16 glass border-white/10 rounded-2xl text-lg font-headline"
-                  onClick={handleMarkAsWatched}
-                >
-                  {entry.isWatched ? <Check className="w-6 h-6 mr-3 text-green-500" /> : <Clock className="w-6 h-6 mr-3" />}
-                  {entry.isWatched ? `Watched (${entry.rewatchCount || 1}x)` : "Mark Experienced"}
-                </Button>
+                <div className="space-y-2">
+                  <Button 
+                    variant="secondary" 
+                    className="w-full h-16 glass border-white/10 rounded-2xl text-lg font-headline"
+                    onClick={handleMarkAsWatched}
+                  >
+                    {entry.isWatched ? <Check className="w-6 h-6 mr-3 text-green-500" /> : <Clock className="w-6 h-6 mr-3" />}
+                    {entry.isWatched ? `Watched (${entry.rewatchCount || 1}x)` : "Mark Experienced"}
+                  </Button>
+                  
+                  {isUpcoming && (
+                    <Button 
+                      variant="outline" 
+                      className={cn(
+                        "w-full h-12 glass border-white/5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all",
+                        entry.remindMe ? "text-blue-400 border-blue-400/20 bg-blue-400/5" : "text-white/40"
+                      )}
+                      onClick={handleToggleReminder}
+                    >
+                      {entry.remindMe ? <Bell className="w-4 h-4 mr-2" /> : <BellOff className="w-4 h-4 mr-2" />}
+                      {entry.remindMe ? "Reminder Active" : "Set Release Reminder"}
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
 

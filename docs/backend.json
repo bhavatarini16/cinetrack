@@ -246,6 +246,10 @@
         "isFavorite": {
           "type": "boolean",
           "description": "Indicates if the user has marked this movie as a favorite."
+        },
+        "remindMe": {
+          "type": "boolean",
+          "description": "Indicates if the user wants to be notified when this movie is released."
         }
       },
       "required": [

@@ -4,6 +4,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import Navbar from '@/components/navbar';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+import ReleaseNotificationListener from '@/components/release-notification-listener';
 
 export const metadata: Metadata = {
   title: 'CineTrack | Your Personal Cinema Journey',
@@ -25,6 +26,7 @@ export default function RootLayout({
       <body className="font-body antialiased bg-background min-h-screen overflow-x-hidden">
         <FirebaseClientProvider>
           <Navbar />
+          <ReleaseNotificationListener />
           <main className="relative z-0">
             {children}
           </main>

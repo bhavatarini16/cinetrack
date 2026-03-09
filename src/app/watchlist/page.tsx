@@ -5,7 +5,7 @@ import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebas
 import { collection, query, orderBy } from 'firebase/firestore';
 import MovieCard from '@/components/movie-card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { List, CheckCircle2, Clock, Loader2, PlayCircle, Sparkles } from 'lucide-react';
+import { List, CheckCircle2, Clock, Loader2, PlayCircle, Sparkles, Bell } from 'lucide-react';
 import { WatchlistEntry } from '../lib/types';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -48,8 +48,9 @@ export default function WatchlistPage() {
     );
   }
 
-  const watchlist = entries?.filter(e => !e.isWatched) || [];
+  const watchlist = entries?.filter(e => !e.isWatched && new Date(e.movieData.releaseDate) <= new Date()) || [];
   const watched = entries?.filter(e => e.isWatched) || [];
+  const upcoming = entries?.filter(e => !e.isWatched && new Date(e.movieData.releaseDate) > new Date()) || [];
 
   return (
     <div className="pt-24 min-h-screen max-w-7xl mx-auto px-4 md:px-8 pb-16">
@@ -64,7 +65,11 @@ export default function WatchlistPage() {
         <TabsList className="glass border-white/5 p-1 h-14 w-full md:w-auto">
           <TabsTrigger value="watchlist" className="flex items-center gap-2 px-6 h-full data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
             <Clock className="w-4 h-4" /> 
-            <span>Watchlist ({watchlist.length})</span>
+            <span>Queue ({watchlist.length})</span>
+          </TabsTrigger>
+          <TabsTrigger value="upcoming" className="flex items-center gap-2 px-6 h-full data-[state=active]:bg-blue-500 data-[state=active]:text-white transition-all">
+            <Bell className="w-4 h-4" /> 
+            <span>Upcoming ({upcoming.length})</span>
           </TabsTrigger>
           <TabsTrigger value="watched" className="flex items-center gap-2 px-6 h-full data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
             <CheckCircle2 className="w-4 h-4" /> 
@@ -82,8 +87,24 @@ export default function WatchlistPage() {
           ) : (
             <div className="h-64 glass border-white/5 rounded-2xl flex flex-col items-center justify-center text-white/30 italic">
               <List className="w-12 h-12 mb-4 opacity-20" />
-              <p>Your watchlist is empty.</p>
+              <p>Your queue is empty.</p>
               <Link href="/" className="mt-4 text-primary hover:underline not-italic font-bold uppercase tracking-widest text-xs">Go discover movies</Link>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="upcoming" className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+          {upcoming.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+              {upcoming.map(entry => (
+                <MovieCard key={entry.id} movie={entry.movieData} />
+              ))}
+            </div>
+          ) : (
+            <div className="h-64 glass border-white/5 rounded-2xl flex flex-col items-center justify-center text-white/30 italic">
+              <Bell className="w-12 h-12 mb-4 opacity-20" />
+              <p>No upcoming releases tracked.</p>
+              <p className="text-[10px] mt-2 text-white/20 uppercase tracking-widest">Add unreleased films to get notified.</p>
             </div>
           )}
         </TabsContent>

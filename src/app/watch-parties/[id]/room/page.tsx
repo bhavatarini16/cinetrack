@@ -35,10 +35,11 @@ export default function WatchRoomPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const [hasCameraPermission, setHasCameraPermission] = useState(false);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [isMicEnabled, setIsMicEnabled] = useState(true);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   // Core Data
   const partyRef = useMemoFirebase(() => doc(firestore, 'watchParties', partyId), [firestore, partyId]);
@@ -50,7 +51,12 @@ export default function WatchRoomPage() {
   useEffect(() => {
     const getCameraPermission = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: true, 
+          audio: true 
+        });
+        
+        streamRef.current = stream;
         setHasCameraPermission(true);
 
         if (videoRef.current) {
@@ -61,8 +67,8 @@ export default function WatchRoomPage() {
         setHasCameraPermission(false);
         toast({
           variant: 'destructive',
-          title: 'Camera Access Denied',
-          description: 'Please enable camera permissions in your browser settings to participate in the watch party room.',
+          title: 'Media Access Denied',
+          description: 'Please enable camera and microphone permissions in your browser settings to participate.',
         });
       }
     };
@@ -72,18 +78,16 @@ export default function WatchRoomPage() {
     }
 
     return () => {
-      // Cleanup stream on unmount
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach(track => track.stop());
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
       }
     };
   }, [user, toast]);
 
   const toggleMic = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getAudioTracks().forEach(track => {
+    if (streamRef.current) {
+      const audioTracks = streamRef.current.getAudioTracks();
+      audioTracks.forEach(track => {
         track.enabled = !isMicEnabled;
       });
       setIsMicEnabled(!isMicEnabled);
@@ -91,9 +95,9 @@ export default function WatchRoomPage() {
   };
 
   const toggleVideo = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getVideoTracks().forEach(track => {
+    if (streamRef.current) {
+      const videoTracks = streamRef.current.getVideoTracks();
+      videoTracks.forEach(track => {
         track.enabled = !isVideoEnabled;
       });
       setIsVideoEnabled(!isVideoEnabled);
@@ -194,10 +198,11 @@ export default function WatchRoomPage() {
                     ref={videoRef} 
                     className={cn(
                       "w-full h-full object-cover mirror-mode",
-                      !isVideoEnabled && "hidden"
+                      !isVideoEnabled && "invisible"
                     )} 
                     autoPlay 
                     muted 
+                    playsInline
                   />
                   {!isVideoEnabled && (
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -207,15 +212,15 @@ export default function WatchRoomPage() {
                        </Avatar>
                     </div>
                   )}
-                  <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
-                    <Badge className="bg-black/60 backdrop-blur-md text-[10px] border-none font-bold">YOU (Host)</Badge>
+                  <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between bg-black/40 backdrop-blur-sm p-1 rounded-md">
+                    <Badge className="bg-transparent text-[10px] border-none font-bold">YOU (Host)</Badge>
                     <div className="flex gap-1">
-                      {!isMicEnabled && <MicOff className="w-3 h-3 text-red-500" />}
+                      {!isMicEnabled ? <MicOff className="w-3 h-3 text-red-500" /> : <Mic className="w-3 h-3 text-green-500" />}
                     </div>
                   </div>
                 </div>
 
-                {!hasCameraPermission && (
+                {hasCameraPermission === false && (
                   <Alert variant="destructive" className="bg-red-500/10 border-red-500/20 text-red-500 p-2">
                     <AlertTitle className="text-[10px] font-bold uppercase">Permissions Required</AlertTitle>
                     <AlertDescription className="text-[10px]">
@@ -235,8 +240,8 @@ export default function WatchRoomPage() {
                       </Avatar>
                    </div>
                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                   <div className="absolute bottom-2 left-2 flex items-center gap-2">
-                     <Badge className="bg-black/40 text-[10px] border-none">{member.username}</Badge>
+                   <div className="absolute bottom-2 left-2 flex items-center gap-2 bg-black/40 backdrop-blur-sm p-1 rounded-md">
+                     <Badge className="bg-transparent text-[10px] border-none">{member.username}</Badge>
                      {idx === 0 && <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
                    </div>
                 </div>

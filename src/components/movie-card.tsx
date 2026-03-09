@@ -2,7 +2,7 @@
 "use client";
 
 import Image from 'next/image';
-import { Star, Plus, Check, Info, Heart } from 'lucide-react';
+import { Star, Plus, Check, Info, Heart, Bell } from 'lucide-react';
 import { Movie, WatchlistEntry } from '@/app/lib/types';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useMemoFirebase, useCollection, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { collection, query, where, doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import MovieDetailsDialog from './movie-details-dialog';
 
 interface MovieCardProps {
@@ -35,6 +35,10 @@ export default function MovieCard({ movie, variant = 'grid' }: MovieCardProps) {
   const { data: watchlistEntries } = useCollection<WatchlistEntry>(watchlistRef);
   const entry = watchlistEntries?.[0];
 
+  const isUpcoming = useMemo(() => {
+    return new Date(movie.releaseDate) > new Date();
+  }, [movie.releaseDate]);
+
   const handleAddToQueue = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!user) {
@@ -55,8 +59,12 @@ export default function MovieCard({ movie, variant = 'grid' }: MovieCardProps) {
       isWatched: false,
       rewatchCount: 0,
       isFavorite: false,
+      remindMe: isUpcoming,
     });
-    toast({ title: "Added to Queue", description: `${movie.title} is now tracked.` });
+    toast({ 
+      title: isUpcoming ? "Reminder Set" : "Added to Queue", 
+      description: isUpcoming ? `We'll alert you when ${movie.title} releases.` : `${movie.title} is now tracked.` 
+    });
   };
 
   const handleToggleFavorite = (e: React.MouseEvent) => {
@@ -83,6 +91,7 @@ export default function MovieCard({ movie, variant = 'grid' }: MovieCardProps) {
         isWatched: false,
         rewatchCount: 0,
         isFavorite: true,
+        remindMe: isUpcoming,
       });
       toast({ title: "Added to Favorites", description: `${movie.title} added to your queue.` });
     }
@@ -111,8 +120,13 @@ export default function MovieCard({ movie, variant = 'grid' }: MovieCardProps) {
         <div className="absolute top-2 right-2 flex flex-col gap-1">
           <Badge className="bg-black/60 backdrop-blur-md border-white/10 text-primary flex items-center gap-1 font-bold">
             <Star className="w-3 h-3 fill-primary" />
-            {movie.tmdbRating}
+            {movie.tmdbRating || "N/A"}
           </Badge>
+          {isUpcoming && (
+            <Badge className="bg-blue-500/80 backdrop-blur-md text-white border-none font-bold">
+              <Bell className="w-3 h-3 mr-1" /> SOON
+            </Badge>
+          )}
           {entry?.isWatched && (
             <Badge className="bg-green-500/80 backdrop-blur-md text-white border-none font-bold">
               <Check className="w-3 h-3 mr-1" /> WATCHED
@@ -136,12 +150,15 @@ export default function MovieCard({ movie, variant = 'grid' }: MovieCardProps) {
             <div className="flex items-center gap-2">
               <Button 
                 size="sm" 
-                className="flex-1 bg-primary hover:bg-primary/80 h-8 text-[10px] font-bold uppercase tracking-wider"
+                className={cn(
+                  "flex-1 h-8 text-[10px] font-bold uppercase tracking-wider",
+                  isUpcoming ? "bg-blue-600 hover:bg-blue-500" : "bg-primary hover:bg-primary/80"
+                )}
                 onClick={handleAddToQueue}
                 disabled={!!entry}
               >
-                {entry ? <Check className="w-3 h-3 mr-1" /> : <Plus className="w-3 h-3 mr-1" />}
-                {entry ? "In Queue" : "Add to Queue"}
+                {entry ? <Check className="w-3 h-3 mr-1" /> : (isUpcoming ? <Bell className="w-3 h-3 mr-1" /> : <Plus className="w-3 h-3 mr-1" />)}
+                {entry ? "Tracked" : (isUpcoming ? "Remind Me" : "Queue")}
               </Button>
               <Button 
                 size="sm" 

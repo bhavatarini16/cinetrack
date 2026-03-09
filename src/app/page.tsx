@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { Search, TrendingUp, Filter, PlayCircle, Loader2, Calendar, Star, Sparkles } from 'lucide-react';
+import { Search, TrendingUp, Filter, PlayCircle, Loader2, Calendar, Star, Sparkles, Bell } from 'lucide-react';
 import { searchMovies, getTrendingMovies } from './lib/tmdb-service';
 import MovieCard from '@/components/movie-card';
 import { Input } from '@/components/ui/input';
@@ -27,6 +27,7 @@ export default function Home() {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [selectedGenre, setSelectedGenre] = useState<string>("all");
   const [minRating, setMinRating] = useState<string>("0");
+  const [releaseStatus, setReleaseStatus] = useState<string>("all");
 
   useEffect(() => {
     const fetchTrending = async () => {
@@ -47,12 +48,22 @@ export default function Home() {
   };
 
   const filteredMovies = useMemo(() => {
+    const now = new Date();
     return movies.filter(m => {
       const matchesGenre = selectedGenre === "all" || m.genres.includes(selectedGenre);
       const matchesRating = m.tmdbRating >= parseFloat(minRating);
-      return matchesGenre && matchesRating;
+      
+      let matchesStatus = true;
+      const releaseDate = new Date(m.releaseDate);
+      if (releaseStatus === "upcoming") {
+        matchesStatus = releaseDate > now;
+      } else if (releaseStatus === "released") {
+        matchesStatus = releaseDate <= now;
+      }
+      
+      return matchesGenre && matchesRating && matchesStatus;
     });
-  }, [movies, selectedGenre, minRating]);
+  }, [movies, selectedGenre, minRating, releaseStatus]);
 
   return (
     <div className="pt-16 min-h-screen">
@@ -108,6 +119,17 @@ export default function Home() {
               </div>
               
               <div className="flex items-center gap-3">
+                <Select value={releaseStatus} onValueChange={setReleaseStatus}>
+                  <SelectTrigger className="w-[160px] h-14 glass border-white/10 rounded-2xl text-white">
+                    <SelectValue placeholder="Release Status" />
+                  </SelectTrigger>
+                  <SelectContent className="glass border-white/10 text-white">
+                    <SelectItem value="all">All Releases</SelectItem>
+                    <SelectItem value="released">Released Only</SelectItem>
+                    <SelectItem value="upcoming">Coming Soon</SelectItem>
+                  </SelectContent>
+                </Select>
+
                 <Select value={selectedGenre} onValueChange={setSelectedGenre}>
                   <SelectTrigger className="w-[140px] h-14 glass border-white/10 rounded-2xl text-white">
                     <SelectValue placeholder="Genre" />
@@ -148,8 +170,14 @@ export default function Home() {
               ))}
               {filteredMovies.length === 0 && (
                 <div className="col-span-full py-32 text-center space-y-4">
-                  <p className="text-white/20 text-2xl italic font-headline">The archives are empty for "{search}"</p>
-                  <Button variant="link" onClick={() => handleSearch('')} className="text-primary font-bold uppercase tracking-widest text-xs">Clear all filters</Button>
+                  <p className="text-white/20 text-2xl italic font-headline">The archives are empty for your filters</p>
+                  <Button variant="link" onClick={() => {
+                    setSearch('');
+                    setSelectedGenre('all');
+                    setMinRating('0');
+                    setReleaseStatus('all');
+                    handleSearch('');
+                  }} className="text-primary font-bold uppercase tracking-widest text-xs">Clear all filters</Button>
                 </div>
               )}
             </div>

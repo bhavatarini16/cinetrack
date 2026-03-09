@@ -97,3 +97,15 @@ export interface WatchPartyMember {
   avatarUrl: string;
   joinedAt: string;
 }
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: 'watch-party-invite';
+  partyId: string;
+  partyTitle: string;
+  senderId: string;
+  senderName: string;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt: string;
+}

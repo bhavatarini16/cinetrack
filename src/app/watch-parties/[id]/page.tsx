@@ -3,9 +3,9 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
 import { doc, collection, query, setDoc, deleteDoc, where, getDoc } from 'firebase/firestore';
-import { WatchParty, WatchPartyNomination, WatchPartyMember, Movie, UserProfile } from '@/app/lib/types';
+import { WatchParty, WatchPartyNomination, WatchPartyMember, Movie, UserProfile, Notification } from '@/app/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -23,7 +23,8 @@ import {
   Sparkles,
   Play,
   Share2,
-  UserCheck
+  UserCheck,
+  Send
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -99,17 +100,22 @@ export default function WatchPartyDetailsPage() {
     toast({ title: "Joined the Party!", description: "You can now nominate and vote for movies." });
   };
 
-  const handleAddMember = async (friend: UserProfile) => {
-    if (!firestore) return;
-    const memberRef = doc(firestore, `watchParties/${partyId}/members/${friend.id}`);
-    setDoc(memberRef, {
-      id: friend.id,
+  const handleSendInvite = async (friend: UserProfile) => {
+    if (!user || !firestore || !party) return;
+    
+    const notificationRef = collection(firestore, `users/${friend.id}/notifications`);
+    addDocumentNonBlocking(notificationRef, {
       userId: friend.id,
-      username: friend.username,
-      avatarUrl: friend.avatarUrl || `https://picsum.photos/seed/${friend.id}/100`,
-      joinedAt: new Date().toISOString()
-    });
-    toast({ title: "Member Added", description: `${friend.username} has been invited to the party.` });
+      type: 'watch-party-invite',
+      partyId: party.id,
+      partyTitle: party.title,
+      senderId: user.uid,
+      senderName: user.email?.split('@')[0].toUpperCase() || 'HOST',
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    } as Omit<Notification, 'id'>);
+
+    toast({ title: "Invite Sent", description: `${friend.username} has been notified of the party.` });
   };
 
   const handleSearch = async (val: string) => {
@@ -216,15 +222,15 @@ export default function WatchPartyDetailsPage() {
                      <Dialog open={isInviting} onOpenChange={setIsInviting}>
                         <DialogTrigger asChild>
                           <Button variant="outline" className="glass border-white/10">
-                            <UserPlus className="w-4 h-4 mr-2" /> Add Members
+                            <UserPlus className="w-4 h-4 mr-2" /> Invite Friends
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="glass-dark border-white/10 text-white">
                           <DialogHeader>
-                            <DialogTitle className="font-headline text-xl">INVITE FRIENDS</DialogTitle>
+                            <DialogTitle className="font-headline text-xl">SEND INVITES</DialogTitle>
                           </DialogHeader>
                           <div className="space-y-4 pt-4">
-                            <p className="text-sm text-white/40">Select friends to add them directly to this watch party.</p>
+                            <p className="text-sm text-white/40">Friends will receive a pulse notification to join the party.</p>
                             <ScrollArea className="h-64">
                               <div className="space-y-3">
                                 {potentialFriends.length > 0 ? (
@@ -243,9 +249,9 @@ export default function WatchPartyDetailsPage() {
                                           size="sm" 
                                           variant={isAlreadyMember ? "ghost" : "default"}
                                           disabled={isAlreadyMember}
-                                          onClick={() => handleAddMember(friend)}
+                                          onClick={() => handleSendInvite(friend)}
                                         >
-                                          {isAlreadyMember ? <UserCheck className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                                          {isAlreadyMember ? <UserCheck className="w-4 h-4" /> : <Send className="w-4 h-4" />}
                                         </Button>
                                       </div>
                                     );

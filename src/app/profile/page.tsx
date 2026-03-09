@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, useAuth } from '@/firebase';
@@ -7,7 +6,7 @@ import { UserProfile, WatchlistEntry, SceneMemory } from '../lib/types';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Film, Star, Calendar, Sparkles, Loader2, Settings, History, LogOut, LogIn, Video, Quote, StickyNote } from 'lucide-react';
+import { Film, Star, Calendar, Sparkles, Loader2, Settings, History, LogOut, LogIn, Video, Quote, StickyNote, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import MovieCard from '@/components/movie-card';
 import Link from 'next/link';

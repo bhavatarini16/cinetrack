@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
@@ -13,6 +12,7 @@ import RandomMoviePicker from '@/components/random-movie-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
+import { Badge } from '@/components/ui/badge';
 
 export default function WatchlistPage() {
   const { user, isUserLoading } = useUser();

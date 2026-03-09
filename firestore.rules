@@ -28,9 +28,10 @@ service cloud.firestore {
 
     function isFriendOf(targetUserId) {
       // Robust check for friend status that handles missing documents or fields safely
+      let userPath = /databases/$(database)/documents/users/$(targetUserId);
       return isSignedIn() && 
-             exists(/databases/$(database)/documents/users/$(targetUserId)) &&
-             request.auth.uid in get(/databases/$(database)/documents/users/$(targetUserId)).data.get('friends', {});
+             exists(userPath) &&
+             request.auth.uid in get(userPath).data.get('friends', {});
     }
 
     function isDataOwner(fieldName) {
@@ -45,8 +46,8 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get, list: if isOwner(userId) || isFriendOf(userId);
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == userId;
+      allow create: if isOwner(userId); // Simplified to allow profile creation on registration
+      allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
 
       match /watchlist/{watchlistEntryId} {
@@ -85,7 +86,7 @@ service cloud.firestore {
     }
 
     match /comments/{commentId} {
-      // Ensure comments are readable by any authenticated user for the social feed
+      // Explicitly allow list/get for authenticated users
       allow read: if isSignedIn();
       allow create: if isDataOwner('userId');
       allow update: if isExistingDataOwner('userId') && request.resource.data.userId == resource.data.userId;

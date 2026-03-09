@@ -1,16 +1,19 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useAuth, useUser, initiateEmailSignIn, initiateEmailSignUp, initiateAnonymousSignIn } from '@/firebase';
+import { useAuth, useUser, useFirestore, initiateEmailSignIn, initiateEmailSignUp, initiateAnonymousSignIn, setDocumentNonBlocking } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Film, Mail, Lock, Sparkles, Loader2, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { doc } from 'firebase/firestore';
 
 export default function LoginPage() {
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   const router = useRouter();
@@ -30,28 +33,46 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     
-    const authPromise = isSignUp 
-      ? initiateEmailSignUp(auth, email, password)
-      : initiateEmailSignIn(auth, email, password);
+    if (isSignUp) {
+      initiateEmailSignUp(auth, email, password)
+        .then((userCredential) => {
+          const newUser = userCredential.user;
+          // Automatically create the Firestore profile for the new user
+          setDocumentNonBlocking(doc(firestore, `users/${newUser.uid}`), {
+            id: newUser.uid,
+            username: email.split('@')[0].toUpperCase(),
+            email: email,
+            dateJoined: new Date().toISOString(),
+            friends: {} // Initialize with empty friends map for security rules
+          }, { merge: true });
+        })
+        .catch((error: any) => {
+          setLoading(false);
+          handleAuthError(error, "Sign Up Failed");
+        });
+    } else {
+      initiateEmailSignIn(auth, email, password)
+        .catch((error: any) => {
+          setLoading(false);
+          handleAuthError(error, "Sign In Failed");
+        });
+    }
+  };
 
-    authPromise.catch((error: any) => {
-      setLoading(false);
-      let message = error.message;
-      
-      // Provide user-friendly messages for common errors
-      if (error.code === 'auth/email-already-in-use') {
-        message = "This email is already associated with an account. Please sign in instead.";
-      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
-        message = "Invalid email or password.";
-      } else if (error.code === 'auth/weak-password') {
-        message = "Password should be at least 6 characters.";
-      }
+  const handleAuthError = (error: any, title: string) => {
+    let message = error.message;
+    if (error.code === 'auth/email-already-in-use') {
+      message = "This email is already associated with an account. Please sign in instead.";
+    } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+      message = "Invalid email or password.";
+    } else if (error.code === 'auth/weak-password') {
+      message = "Password should be at least 6 characters.";
+    }
 
-      toast({ 
-        variant: "destructive", 
-        title: isSignUp ? "Sign Up Failed" : "Sign In Failed", 
-        description: message 
-      });
+    toast({ 
+      variant: "destructive", 
+      title: title, 
+      description: message 
     });
   };
 

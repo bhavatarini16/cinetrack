@@ -46,11 +46,18 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get, list: if isOwner(userId) || isFriendOf(userId);
-      allow create: if isOwner(userId); // Simplified to allow profile creation on registration
+      allow create: if isOwner(userId); 
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
 
       match /watchlist/{watchlistEntryId} {
+        allow get, list: if isOwner(userId) || isFriendOf(userId);
+        allow create: if isOwner(userId) && request.resource.data.userId == userId;
+        allow update: if isExistingOwner(userId) && request.resource.data.userId == userId;
+        allow delete: if isExistingOwner(userId);
+      }
+
+      match /sceneMemories/{memoryId} {
         allow get, list: if isOwner(userId) || isFriendOf(userId);
         allow create: if isOwner(userId) && request.resource.data.userId == userId;
         allow update: if isExistingOwner(userId) && request.resource.data.userId == userId;
@@ -86,7 +93,6 @@ service cloud.firestore {
     }
 
     match /comments/{commentId} {
-      // Explicitly allow list/get for authenticated users
       allow read: if isSignedIn();
       allow create: if isDataOwner('userId');
       allow update: if isExistingDataOwner('userId') && request.resource.data.userId == resource.data.userId;

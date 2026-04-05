@@ -14,6 +14,12 @@ export interface Movie {
   director?: string;
 }
 
+export interface DiaryEntry {
+  journalText: string;
+  summary: string;
+  mood: string;
+}
+
 export interface WatchlistEntry {
   id: string;
   userId: string;
@@ -27,6 +33,7 @@ export interface WatchlistEntry {
   rewatchCount: number;
   isFavorite?: boolean;
   remindMe?: boolean;
+  diaryEntry?: DiaryEntry;
 }
 
 export interface CinemaPersonality {

@@ -34,7 +34,7 @@
     "WatchlistEntry": {
       "title": "WatchlistEntry",
       "type": "object",
-      "description": "A detailed movie record containing original metadata (titles, posters, genres) for clear database visualization.",
+      "description": "A detailed movie record containing metadata and AI-generated diary entries.",
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
@@ -61,7 +61,15 @@
         "notes": { "type": "string" },
         "rewatchCount": { "type": "number" },
         "isFavorite": { "type": "boolean" },
-        "remindMe": { "type": "boolean" }
+        "remindMe": { "type": "boolean" },
+        "diaryEntry": {
+          "type": "object",
+          "properties": {
+            "journalText": { "type": "string" },
+            "summary": { "type": "string" },
+            "mood": { "type": "string" }
+          }
+        }
       },
       "required": ["userId", "movieId", "isWatched", "movieData"]
     }
@@ -76,7 +84,7 @@
     },
     "/users/{userId}/watchlist/{movieId}": {
       "schema": { "$ref": "#/backend/entities/WatchlistEntry" },
-      "description": "User's personal movie collection with original metadata."
+      "description": "User's personal movie collection with original metadata and AI diary."
     }
   }
 }

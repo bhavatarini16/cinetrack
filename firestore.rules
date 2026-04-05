@@ -15,7 +15,7 @@ service cloud.firestore {
     // --- Rules ---
 
     // Users have absolute authority over their own profile and all nested sub-data
-    // Using a recursive wildcard to ensure all subcollections are explicitly covered
+    // Using recursive wildcards to explicitly allow 'list' operations on subcollections
     match /users/{userId} {
       allow read, write: if isOwner(userId);
       
@@ -31,7 +31,7 @@ service cloud.firestore {
       allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
-    // Watch Parties are collaborative spaces for signed-in users
+    // Watch Parties are collaborative spaces
     match /watchParties/{partyId} {
       allow read, create: if isSignedIn();
       allow update, delete: if isSignedIn() && (resource == null || resource.data.hostId == request.auth.uid);

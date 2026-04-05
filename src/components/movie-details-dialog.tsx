@@ -1,12 +1,12 @@
 
 "use client";
 
-import { Movie, WatchlistEntry, Comment, SceneMemory, UserProfile, GamificationStats } from "@/app/lib/types";
+import { Movie, WatchlistEntry, Comment, SceneMemory, UserProfile, GamificationStats, DiaryEntry } from "@/app/lib/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Star, Calendar, Clock, Plus, Check, Trash2, Edit3, MessageSquare, Send, Lock, Bell, BellOff, Video, Quote, StickyNote } from "lucide-react";
+import { Star, Calendar, Clock, Plus, Check, Trash2, Edit3, MessageSquare, Send, Lock, Bell, BellOff, Video, Quote, StickyNote, BookOpen, Sparkles, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useUser, useFirestore, useMemoFirebase, useDoc, useCollection, addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
 import { collection, query, where, doc, limit, getDoc } from "firebase/firestore";
@@ -17,7 +17,7 @@ import { Input } from "./ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { ScrollArea } from "./ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { Label } from "./ui/label";
+import { generateMovieDiaryEntry } from "@/ai/flows/movie-diary-flow";
 
 interface MovieDetailsDialogProps {
   movie: Movie | null;
@@ -34,6 +34,7 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
   const [tempNotes, setTempNotes] = useState("");
   const [tempRating, setTempRating] = useState<number>(0);
   const [commentText, setCommentText] = useState("");
+  const [isDiaryGenerating, setIsDiaryGenerating] = useState(false);
   
   const [isAddingMemory, setIsAddingMemory] = useState(false);
   const [memoryTimestamp, setMemoryTimestamp] = useState("");
@@ -56,7 +57,7 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
     );
   }, [isOpen, movie?.tmdbId, firestore]);
 
-  const { data: comments, isLoading: isCommentsLoading } = useCollection<Comment>(commentsRef);
+  const { data: comments } = useCollection<Comment>(commentsRef);
 
   const sceneMemoriesRef = useMemoFirebase(() => {
     if (!isOpen || !movie?.tmdbId || !user?.uid || !firestore) return null;
@@ -74,6 +75,26 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
   }, [movie?.releaseDate]);
 
   if (!movie) return null;
+
+  const handleDiaryGeneration = async (rating: number, notes: string) => {
+    if (!user || !movie) return;
+    setIsDiaryGenerating(true);
+    try {
+      const diary = await generateMovieDiaryEntry({
+        title: movie.title,
+        genres: movie.genres,
+        rating,
+        notes
+      });
+      updateDocumentNonBlocking(doc(firestore, `users/${user.uid}/watchlist/${movie.tmdbId}`), {
+        diaryEntry: diary
+      });
+    } catch (error) {
+      console.error("Diary generation failed", error);
+    } finally {
+      setIsDiaryGenerating(false);
+    }
+  };
 
   const updateGamification = async () => {
     if (!user || !firestore) return;
@@ -111,7 +132,6 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
     
     if (newTotal === 1 && !newBadges.includes("Cinematic Rookie")) newBadges.push("Cinematic Rookie");
     if (newStreak === 3 && !newBadges.includes("Streak Starter")) newBadges.push("Streak Starter");
-    if (today.getDay() >= 5 && !newBadges.includes("Weekend Binger")) newBadges.push("Weekend Binger");
 
     updateDocumentNonBlocking(userRef, {
       gamification: {
@@ -160,7 +180,8 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
     
     if (newlyWatched) {
       updateGamification();
-      toast({ title: "Achievement! Marked as experienced." });
+      handleDiaryGeneration(entry.personalRating || 0, entry.notes || "");
+      toast({ title: "Experience Recorded", description: "Generating AI Movie Diary entry..." });
     } else {
       toast({ title: "Reset to unwatched" });
     }
@@ -172,8 +193,11 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
       notes: tempNotes,
       personalRating: tempRating,
     });
+    if (entry.isWatched) {
+      handleDiaryGeneration(tempRating, tempNotes);
+    }
     setEditingNotes(false);
-    toast({ title: "Perspective saved" });
+    toast({ title: "Perspective saved", description: entry.isWatched ? "AI Diary updated." : "" });
   };
 
   const handlePostComment = () => {
@@ -244,6 +268,32 @@ export default function MovieDetailsDialog({ movie, isOpen, onClose }: MovieDeta
 
           <div className="p-8 grid grid-cols-1 lg:grid-cols-12 gap-12">
             <div className="lg:col-span-8 space-y-12">
+              {entry?.diaryEntry && (
+                <div className="animate-fade-in p-6 glass border-primary/20 rounded-2xl space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[10px] font-bold text-primary flex items-center gap-2 tracking-[0.4em] uppercase">
+                      <BookOpen className="w-3 h-3" /> AI Movie Diary
+                    </h4>
+                    <Badge className="bg-primary/20 text-primary border-none">{entry.diaryEntry.mood}</Badge>
+                  </div>
+                  <div className="space-y-3">
+                    <p className="text-2xl font-headline font-bold text-white tracking-tight leading-tight italic">
+                      "{entry.diaryEntry.journalText}"
+                    </p>
+                    <p className="text-sm text-white/50 leading-relaxed">
+                      {entry.diaryEntry.summary}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {isDiaryGenerating && (
+                <div className="p-12 flex flex-col items-center justify-center space-y-4 glass border-white/5 rounded-2xl">
+                   <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                   <p className="text-[10px] font-bold text-primary animate-pulse tracking-widest uppercase">Etching Cinema Journal...</p>
+                </div>
+              )}
+
               <div className="space-y-4">
                 <h4 className="text-[10px] font-bold text-primary flex items-center gap-2 tracking-[0.4em] uppercase">Narrative Overview</h4>
                 <p className="text-white/70 leading-relaxed text-xl font-light italic">{movie.overview}</p>

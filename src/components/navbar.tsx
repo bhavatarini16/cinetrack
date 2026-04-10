@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Film, List, BarChart3, Users, Sparkles, User, Search, LogIn, Tv, Bell } from 'lucide-react';
+import { Film, List, BarChart3, Users, Sparkles, User, Search, LogIn, Tv, Bell, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
 import { useUser, useFirestore, useCollection, useMemoFirebase, deleteDocumentNonBlocking, setDocNonBlocking } from '@/firebase';
@@ -20,6 +20,12 @@ import {
 import { Badge } from './ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 
 const navItems = [
   { href: '/', label: 'Discovery', icon: Search },
@@ -37,6 +43,7 @@ export default function Navbar() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const notificationsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
@@ -111,6 +118,35 @@ export default function Navbar() {
       </div>
 
       <div className="flex items-center gap-4">
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <SheetTrigger asChild>
+            <Button size="icon" variant="ghost" className="lg:hidden text-white/70 hover:text-white">
+              <Menu className="w-5 h-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="right" className="glass-dark border-white/10 text-white w-80">
+            <div className="flex flex-col gap-4 mt-8">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href;
+                return (
+                  <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)}>
+                    <Button
+                      variant="ghost"
+                      className={cn(
+                        "w-full justify-start flex items-center gap-3 h-12 px-4 transition-all hover:bg-white/10 hover:text-primary",
+                        isActive ? "text-primary bg-white/5 font-semibold" : "text-white/70"
+                      )}
+                    >
+                      <Icon className="w-5 h-5" />
+                      <span>{item.label}</span>
+                    </Button>
+                  </Link>
+                );
+              })}
+            </div>
+          </SheetContent>
+        </Sheet>
         {user && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

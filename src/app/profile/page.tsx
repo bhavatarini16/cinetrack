@@ -2,7 +2,7 @@
 "use client";
 
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, useAuth } from '@/firebase';
-import { doc, collection, query, orderBy, limit } from 'firebase/firestore';
+import { doc, collection, query, orderBy, limit, where } from 'firebase/firestore';
 import { UserProfile, WatchlistEntry, SceneMemory } from '../lib/types';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
